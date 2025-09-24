@@ -1,0 +1,57 @@
+{
+  "name": "decent_app_sdk",
+  "version": "0.1.0",
+  "description": "Browser-first DIDComm v2 SDK with Service Worker runtime, pluggable protocols, and a simple client API.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/client/index.js",
+  "module": "dist/client/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/client/index.js",
+      "types": "./src/types/index.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client/index.js",
+      "types": "./src/types/index.d.ts"
+    },
+    "./service-worker": {
+      "import": "./dist/service-worker/index.js",
+      "types": "./src/types/service-worker.d.ts"
+    },
+    "./protocols": {
+      "import": "./dist/protocols/index.js",
+      "types": "./src/types/protocols.d.ts"
+    },
+    "./components": {
+      "import": "./dist/components/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src/types"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "clean": "rimraf dist",
+    "prepare": "npm run build",
+    "test": "node ./test.js"
+  },
+  "keywords": [
+    "didcomm",
+    "didcomm-v2",
+    "sdk",
+    "service-worker",
+    "protocols",
+    "browser",
+    "pwa",
+    "javascript",
+    "web",
+    "typescript-definitions"
+  ],
+  "devDependencies": {
+    "rimraf": "^5.0.0",
+    "vite": "^7.1.7"
+  }
+}

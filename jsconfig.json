@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "checkJs": true,
+    "baseUrl": ".",
+    "paths": {
+      "decent_app_sdk/*": [
+        "src/*"
+      ],
+      "decent_app_sdk/client": [
+        "src/client/index.js"
+      ],
+      "decent_app_sdk/service-worker": [
+        "src/service-worker/index.js"
+      ],
+      "decent_app_sdk/protocols": [
+        "src/protocols/index.js"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "examples/**/*",
+    "vite.config.js",
+    "test.js"
+  ]
+}
+
+

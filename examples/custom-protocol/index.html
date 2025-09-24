@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Custom Protocol Example</title>
+  </head>
+  <body>
+    <h1>Custom Protocol</h1>
+    <button id="hello">Send Hello</button>
+    <pre id="out"></pre>
+    <script type="module">
+      import { DecentApp } from '../../src/client/index.js';
+      const out = document.querySelector('#out');
+      const btn = document.querySelector('#hello');
+      const sdk = new DecentApp({ serviceWorkerUrl: './sw.js' });
+      await sdk.ready;
+      btn.addEventListener('click', async () => {
+        const didInfo = await sdk.getDID();
+        out.textContent = 'My DID: ' + JSON.stringify(didInfo) + '\n';
+        // Broadcast hello (demo only)
+        const packed = await sdk.pack('did:all:all', 'https://didcomm.org/greeting/1.0/hello', JSON.stringify({}));
+        if (packed?.message) {
+          const ok = await sdk.send('did:all:all', packed.message);
+          out.textContent += 'Sent: ' + JSON.stringify({ ok }) + '\n';
+        }
+      });
+    </script>
+  </body>
+</html>
+
+
