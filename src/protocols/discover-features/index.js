@@ -14,6 +14,13 @@ export class DiscoverFeaturesProtocol extends BaseProtocol {
     });
   }
 
+  declareClientMethods() {
+    return {
+      discover: { params: ['matchers', 'timeout?'], description: 'Discover features across peers', timeoutMs: 1000 },
+      advertise: { params: ['featureType', 'id', 'roles?'], description: 'Advertise a feature', timeoutMs: 500 },
+    };
+  }
+
   async handleIncoming(envelope) {
     const { type, from, body } = envelope || {};
     if (type === 'https://didcomm.org/discover-features/2.0/queries' && from) {
@@ -34,6 +41,20 @@ export class DiscoverFeaturesProtocol extends BaseProtocol {
   advertiseCapabilities() {
     // Only advertise protocol; message types will be surfaced via registry aggregate
     return [ { ['feature-type']: 'protocol', id: this.meta.piuri, roles: [] } ];
+  }
+
+  async invokeClientMethod(methodName, args) {
+    if (methodName === 'discover') {
+      const [matchers = [], timeout = 400] = Array.isArray(args) ? args : [args];
+      const result = await discoverFeatures(this.runtime, matchers, timeout);
+      return { ok: true, result };
+    }
+    if (methodName === 'advertise') {
+      const [featureType, id, roles = []] = Array.isArray(args) ? args : [args];
+      await this.runtime.registry.advertiseFeature(featureType, id, roles);
+      return { ok: true };
+    }
+    throw new Error(`Unknown method: ${methodName}`);
   }
 }
 

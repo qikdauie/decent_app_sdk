@@ -1,9 +1,9 @@
-import { getReadyDecentClientSingleton } from '../../src/client/singleton.js';
+import { getReadyDecentClient} from '../../src/client/singleton.js';
 
 const out = document.querySelector('#out');
 const btn = document.querySelector('#discover');
 
-const sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: '/sw.js' });
+const sdk = await getReadyDecentClient({ serviceWorkerUrl: '/sw.js' });
 
 btn.addEventListener('click', async () => {
   const providers = await sdk.protocols.intents.discover(['*'], 800);

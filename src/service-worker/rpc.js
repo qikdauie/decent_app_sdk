@@ -60,10 +60,37 @@ export function registerRpcHandlers(options) {
       if (!port || !kind) return;
       const reply = (payload) => { try { port.postMessage(payload); } catch (e) { try { logger?.error?.('[SW][rpc] postMessage failed', e); } catch {} } };
       const ok = (res) => reply({ ok: true, ...res });
-      const fail = (error, extra = {}) => reply({ ok: false, error: String(error?.message || error), ...extra });
+      const fail = (error, extra = {}) => {
+        try {
+          (async () => {
+            try {
+              const { formatError } = await import('../utils/protocol-helpers.js');
+              const msg = formatError(error, 'RPC failed');
+              reply({ ok: false, error: msg, ...extra });
+            } catch {
+              reply({ ok: false, error: String(error?.message || error), ...extra });
+            }
+          })();
+        } catch {
+          reply({ ok: false, error: String(error?.message || error), ...extra });
+        }
+      };
       (async () => {
         try {
           switch (kind) {
+            case 'getProtocolMethods': {
+              try {
+                const map = registry.getAllProtocolClientMethods();
+                return ok({ methods: map });
+              } catch (err) { return fail(err); }
+            }
+            case 'protocolInvoke': {
+              try {
+                const { protocolId, method, args = [], timeout } = data || {};
+                const result = await registry.invokeProtocolClientMethod(protocolId, method, Array.isArray(args) ? args : [args], timeout);
+                return ok({ result });
+              } catch (err) { return fail(err); }
+            }
             case 'registerAddress': {
               try {
                 const { did } = data || {};

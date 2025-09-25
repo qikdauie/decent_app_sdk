@@ -13,6 +13,9 @@ export class ProtocolRegistry {
 
     /** runtime helpers injected at init() */
     this.runtime = null;
+
+    /** @type {Map<string, Record<string, { params?: string[], description?: string, timeoutMs?: number }>>} */
+    this.idToClientMethods = new Map();
   }
 
   /**
@@ -47,6 +50,23 @@ export class ProtocolRegistry {
     } catch (err) {
       this.logger.warn('Protocol register() failed:', protocol.meta.id, err);
     }
+
+    // Capture declared client methods
+    try {
+      const decl = (typeof protocol.declareClientMethods === 'function' ? protocol.declareClientMethods() : {}) || {};
+      /** @type {Record<string, { params?: string[], description?: string, timeoutMs?: number }>} */
+      const normalized = {};
+      for (const [name, desc] of Object.entries(decl)) {
+        if (!name || typeof name !== 'string') continue;
+        const d = (desc && typeof desc === 'object') ? desc : {};
+        normalized[name] = {
+          params: Array.isArray(d.params) ? d.params.map(String) : undefined,
+          description: d.description ? String(d.description) : undefined,
+          timeoutMs: Number.isFinite(d.timeoutMs) ? Number(d.timeoutMs) : undefined,
+        };
+      }
+      this.idToClientMethods.set(protocol.meta.id, normalized);
+    } catch {}
   }
 
   /** Unregister a protocol instance */
@@ -56,6 +76,7 @@ export class ProtocolRegistry {
     try { await p.cleanup?.(); } catch {}
     this.idToProtocol.delete(protocolId);
     this.protocols.delete(p);
+    try { this.idToClientMethods.delete(String(protocolId)); } catch {}
     return true;
   }
 
@@ -100,6 +121,57 @@ export class ProtocolRegistry {
     }
     for (const entry of this.featureAds.values()) out.push(entry);
     return out;
+  }
+
+  /** Get protocol instance by id */
+  getProtocol(protocolId) {
+    return this.idToProtocol.get(String(protocolId));
+  }
+
+  /** Get declared client methods for a protocol id */
+  getProtocolClientMethods(protocolId) {
+    return this.idToClientMethods.get(String(protocolId)) || {};
+  }
+
+  /**
+   * Return all protocol client methods: { [protocolId]: { [method]: desc } }
+   */
+  getAllProtocolClientMethods() {
+    const out = {};
+    for (const [id, methods] of this.idToClientMethods.entries()) out[id] = methods;
+    return out;
+  }
+
+  /**
+   * Safely invoke a client-declared method on a protocol.
+   * @param {string} protocolId
+   * @param {string} method
+   * @param {any[]} args
+   * @param {number|undefined} timeoutMs
+   */
+  async invokeProtocolClientMethod(protocolId, method, args = [], timeoutMs) {
+    const id = String(protocolId || '');
+    const m = String(method || '');
+    const p = this.idToProtocol.get(id);
+    if (!p) throw new Error(`Unknown protocol: ${id}`);
+    const decl = this.idToClientMethods.get(id) || {};
+    if (!Object.prototype.hasOwnProperty.call(decl, m)) throw new Error(`Unknown method for ${id}: ${m}`);
+    const desc = decl[m] || {};
+    const effectiveTimeout = Number.isFinite(timeoutMs) ? Number(timeoutMs) : (Number.isFinite(desc.timeoutMs) ? Number(desc.timeoutMs) : undefined);
+    const call = async () => {
+      if (typeof p.invokeClientMethod !== 'function') throw new Error('Protocol does not support client methods');
+      return await p.invokeClientMethod(m, Array.isArray(args) ? args : [args]);
+    };
+    // Optional: validate declared params vs provided args (non-throwing)
+    try {
+      const { validateArgs } = await import('../utils/protocol-helpers.js');
+      const declared = decl[m]?.params;
+      validateArgs(declared, Array.isArray(args) ? args : [args], this.logger);
+    } catch {}
+
+    if (!effectiveTimeout || effectiveTimeout <= 0) return await call();
+    const { withTimeout } = await import('../utils/protocol-helpers.js');
+    return await withTimeout(call, effectiveTimeout, 'protocolInvoke');
   }
 }
 

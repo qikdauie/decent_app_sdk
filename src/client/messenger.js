@@ -26,7 +26,8 @@ export class MessengerClient {
 
   rpc(kind, data, timeoutMs = this.rpcTimeoutMs) {
     if (!kind) return Promise.reject(new Error('RPC kind is required.'));
-    return new Promise((resolve, reject) => {
+    const ensureReady = this.controller ? Promise.resolve() : (this.ready?.catch(() => {}) || Promise.resolve());
+    return ensureReady.then(() => new Promise((resolve, reject) => {
       const channel = new MessageChannel();
       let settled = false;
       const done = (fn, value) => { if (settled) return; settled = true; cleanup(); fn(value); };
@@ -39,7 +40,7 @@ export class MessengerClient {
       try { this.controller.postMessage({ kind, data, port: channel.port2 }, [channel.port2]); } catch (err) {
         done(reject, new Error(`Failed to post RPC "${kind}": ${(err && err.message) || err}`));
       }
-    });
+    }));
   }
 }
 

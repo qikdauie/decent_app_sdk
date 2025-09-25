@@ -7,21 +7,37 @@
   </head>
   <body>
     <h1>Custom Protocol</h1>
-    <button id="hello">Send Hello</button>
+    <button id="hello">Say Hello (fire-and-forget)</button>
+    <button id="helloWait">Say Hello (wait)</button>
     <pre id="out"></pre>
     <script type="module">
-      import { getReadyDecentClientSingleton } from '../../src/client/singleton.js';
+      import { getReadyDecentClient} from '../../src/client/singleton.js';
       const out = document.querySelector('#out');
       const btn = document.querySelector('#hello');
-      const sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: './sw.js' });
+      const btn2 = document.querySelector('#helloWait');
+      const sdk = await getReadyDecentClient({ serviceWorkerUrl: './sw.js' });
+      await sdk.protocols.refresh();
       btn.addEventListener('click', async () => {
+        out.textContent = '';
         const didInfo = await sdk.getDID();
-        out.textContent = 'My DID: ' + JSON.stringify(didInfo) + '\n';
-        // Broadcast hello (demo only)
-        const packed = await sdk.pack('did:all:all', 'https://didcomm.org/greeting/1.0/hello', JSON.stringify({}));
-        if (packed?.message) {
-          const ok = await sdk.send('did:all:all', packed.message);
-          out.textContent += 'Sent: ' + JSON.stringify({ ok }) + '\n';
+        out.textContent += 'My DID: ' + JSON.stringify(didInfo) + '\n';
+        const ok = await sdk.protocols.greeting.sayHello('did:all:all', 'Hello!').then(() => true).catch(() => false);
+        out.textContent += 'sayHello(): ' + ok + '\n';
+      });
+      btn2.addEventListener('click', async () => {
+        out.textContent = '';
+        const didInfo = await sdk.getDID();
+        out.textContent += 'My DID: ' + JSON.stringify(didInfo) + '\n';
+        try {
+          await sdk.protocols.refresh();
+          if (sdk.protocols.has('greeting')) {
+            const res = await sdk.protocols.greeting.sayHelloAndWait('did:all:all', 'Hello!', 2500);
+            out.textContent += 'sayHelloAndWait(): ' + JSON.stringify(res) + '\n';
+          } else {
+            out.textContent += 'greeting not available: ' + JSON.stringify(sdk.protocols.list()) + '\n';
+          }
+        } catch (e) {
+          out.textContent += 'sayHelloAndWait() error: ' + e + '\n';
         }
       });
     </script>

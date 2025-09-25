@@ -17,16 +17,16 @@
 - getLastError(result): string | null
 - onMessage(cb): () => void
 
-#### Protocol helpers
-- protocols.discover(matchers, timeout?): Promise<{ ok: boolean, result?: Record<string, any[]>, error?: string }>
+#### Dynamic Protocol Helpers
+- protocols.refresh(): Promise<string[]> — fetch available protocols and attach helpers
+- protocols.list(): string[] — list available protocol IDs
+- protocols.has(protocolId): boolean — check availability
+- protocols.{protocolId}.{method}(...args): Promise<any> — invoke a client-declared method
 - protocols.advertise(featureType, id, roles?): Promise<boolean>
-- protocols.discoverOk(matchers, timeout?): Promise<boolean>
-- protocols.getDiscoverError(matchers, timeout?): Promise<string | null>
+- protocols.discover(matchers, timeout?): Promise<{ ok: boolean, result?: Record<string, any[]>, error?: string }>
 - protocols.intents.advertise(actionOrRequestType, roles?): Promise<boolean>
 - protocols.intents.discover(matchers?, timeout?): Promise<{ ok: boolean, result?: Record<string, any[]>, error?: string }>
-- protocols.intents.request(dest, requestBody, opts?): Promise<{ ok: boolean, result?: any, error?: string }>
-- protocols.intents.requestOk(...): Promise<boolean>
-- protocols.intents.getRequestError(...): Promise<string | null>
+- protocols.intents.request(dest, requestBody, opts?): Promise<{ ok: boolean, response?: any, declined?: boolean, error?: string }>
 
 #### Permissions helpers
 - permissions.check(protocolUri, messageTypeUri): Promise<boolean>
@@ -44,6 +44,13 @@ All RPCs are invoked via `MessageChannel` to the Service Worker. Each request in
 - Failure: `{ ok: false, error: string, ...extra }`
 
 Supported kinds and payloads:
+- getProtocolMethods():
+  - Request: `{ kind: 'getProtocolMethods' }`
+  - Response: `{ ok: true, methods: Record<string, Record<string, { params?: string[], description?: string, timeoutMs?: number }>> }`
+
+- protocolInvoke({ protocolId, method, args, timeout? }):
+  - Request: `{ kind: 'protocolInvoke', data: { protocolId: string, method: string, args?: any[], timeout?: number } }`
+  - Response: `{ ok: true, result: any }`
 
 - getDID():
   - Request: `{ kind: 'getDID' }`

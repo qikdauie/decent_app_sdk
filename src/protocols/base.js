@@ -53,6 +53,123 @@ export class BaseProtocol {
   }
 
   /**
+   * Declare client-callable methods for this protocol.
+   * Override in subclasses to return an object of the shape:
+   *   { [methodName: string]: { params?: string[], description?: string, timeoutMs?: number } }
+   * Used for dynamic client proxy generation and validation.
+   * Defaults to empty object (no client methods exposed).
+   */
+  declareClientMethods() {
+    return {};
+  }
+
+  /**
+   * Invoke a client-declared method. Subclasses should override to handle calls.
+   * @param {string} methodName
+   * @param {any[]} args
+   * @returns {Promise<any>}
+   */
+  async invokeClientMethod(methodName, args) { // override in subclass
+    void methodName; void args;
+    throw new Error('invokeClientMethod not implemented');
+  }
+
+  /**
+   * Helper to send a DIDComm message of a given type and wait for a matching
+   * response within the provided timeout. Avoids relying on thread id from the
+   * packed JWE (which may be unavailable). Prefer explicit match functions.
+   *
+   * @param {string} to
+   * @param {string} messageType
+   * @param {any} body
+   * @param {{ timeoutMs?: number, match?: (envelope:any)=>boolean, skipSend?: boolean, prepacked?: string }} [opts]
+   * @returns {Promise<any|null>} The matching envelope or null on timeout
+   */
+  async sendAndWaitForResponse(to, messageType, body, opts = {}) {
+    const timeoutMs = Number.isFinite(opts.timeoutMs) ? opts.timeoutMs : 5000;
+    const skipSend = opts?.skipSend === true;
+
+    let packedMessage = opts?.prepacked;
+    if (!skipSend) {
+      const packed = await this.runtime.pack(to, messageType, JSON.stringify(body || {}), [], "");
+      if (!packed?.success) throw new Error(String(packed?.error || 'pack failed'));
+      packedMessage = packed.message;
+      await this.runtime.send(to, packedMessage);
+    } else {
+      if (!opts.match) throw new Error('waitForResponse requires explicit match when skipSend=true');
+    }
+
+    // Listen for delivery events and attempt to match using provided matcher.
+    let removeListener = null;
+    const awaitMatch = () => new Promise((resolve) => {
+      let settled = false;
+      const done = (val) => { if (settled) return; settled = true; try { self.removeEventListener('delivery', onDelivery); } catch {} resolve(val); };
+      const onDelivery = async (evt) => {
+        try {
+          const raw = (/** @type {any} */ (evt)).data;
+          const up = await this.runtime.unpack(raw);
+          if (!up?.success) return;
+          const msg = JSON.parse(up.message);
+          const env = { type: msg?.type, from: msg?.from, body: msg?.body, raw: msg };
+          const matchFn = typeof opts.match === 'function' ? opts.match : (() => false);
+          if (matchFn(env)) done(env);
+        } catch {}
+      };
+      removeListener = () => { try { self.removeEventListener('delivery', onDelivery); } catch {} };
+      try { self.addEventListener('delivery', onDelivery); } catch {}
+    });
+
+    try {
+      const { withTimeout } = await import('../utils/protocol-helpers.js');
+      const result = await withTimeout(awaitMatch, Math.max(1, timeoutMs), 'sendAndWaitForResponse');
+      return result;
+    } catch (err) {
+      if (String(err?.message || '').includes('sendAndWaitForResponse timed out')) return null;
+      throw err;
+    } finally {
+      try { if (removeListener) removeListener(); } catch {}
+    }
+  }
+
+  /**
+   * Wait for a response that matches a predicate within a timeout, without sending.
+   * Useful when sending is handled separately and correlation is explicit.
+   * @param {{ match: (envelope:any)=>boolean, timeoutMs?: number }} opts
+   */
+  async waitForResponse(opts) {
+    if (!opts || typeof opts.match !== 'function') throw new Error('waitForResponse requires a match function');
+    const timeoutMs = Number.isFinite(opts.timeoutMs) ? Number(opts.timeoutMs) : 5000;
+    let removeListener = null;
+    const awaitMatch = () => new Promise((resolve) => {
+      let settled = false;
+      const done = (val) => { if (settled) return; settled = true; try { self.removeEventListener('delivery', onDelivery); } catch {} resolve(val); };
+      const onDelivery = async (evt) => {
+        try {
+          const raw = (/** @type {any} */ (evt)).data;
+          const up = await this.runtime.unpack(raw);
+          if (!up?.success) return;
+          const msg = JSON.parse(up.message);
+          const env = { type: msg?.type, from: msg?.from, body: msg?.body, raw: msg };
+          if (opts.match(env)) done(env);
+        } catch {}
+      };
+      removeListener = () => { try { self.removeEventListener('delivery', onDelivery); } catch {} };
+      try { self.addEventListener('delivery', onDelivery); } catch {}
+    });
+
+    try {
+      const { withTimeout } = await import('../utils/protocol-helpers.js');
+      const result = await withTimeout(awaitMatch, Math.max(1, timeoutMs), 'waitForResponse');
+      return result;
+    } catch (err) {
+      if (String(err?.message || '').includes('waitForResponse timed out')) return null;
+      throw err;
+    } finally {
+      try { if (removeListener) removeListener(); } catch {}
+    }
+  }
+
+  /**
    * Determine if this protocol supports a given DIDComm message type URI.
    * @param {string} typeUri
    */

@@ -1,6 +1,7 @@
 import { ProtocolRegistry } from '../protocols/registry.js';
 import { DiscoverFeaturesProtocol } from '../protocols/discover-features/index.js';
 import { AppIntentsProtocol } from '../protocols/app-intents/index.js';
+import { TrustPingProtocol } from '../protocols/trust-ping/index.js';
 
 /**
  * Service Worker core harness for decent_app_sdk.
@@ -61,6 +62,7 @@ export function createWorkerCore(config = {}) {
     const intentsOptions = { ...(config.appIntents || {}) };
     registry.register(new DiscoverFeaturesProtocol());
     registry.register(new AppIntentsProtocol(intentsOptions));
+    registry.register(new TrustPingProtocol());
   }
 
   // Wire inbound delivery to registry routing (best-effort)
