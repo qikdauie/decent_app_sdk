@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getDecentClientSingleton } from '../../src/client/singleton.js';
 
 export function DecentClientDemo() {
-  const sdk = useMemo(() => getDecentClientSingleton({ serviceWorkerUrl: '/worker/sw.js' }), []);
+  const sdk = useMemo(() => getDecentClientSingleton({ serviceWorkerUrl: '/sw.js' }), []);
   const [ready, setReady] = useState(false);
   const [did, setDid] = useState(null);
 

@@ -6,7 +6,7 @@ const ready = ref(false);
 const did = ref(null);
 
 onMounted(async () => {
-  const sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: '/worker/sw.js' });
+  const sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: '/sw.js' });
   ready.value = true;
   did.value = await sdk.getDID();
 });

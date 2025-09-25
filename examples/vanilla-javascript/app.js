@@ -4,7 +4,7 @@ const out = document.querySelector('#out');
 const btn = document.querySelector('#init');
 
 btn.addEventListener('click', async () => {
-  const sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: '/worker/sw.js' });
+  const sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: '/sw.js' });
   out.textContent = 'SDK ready\n';
   const did = await sdk.getDID();
   out.textContent += 'DID: ' + JSON.stringify(did) + '\n';

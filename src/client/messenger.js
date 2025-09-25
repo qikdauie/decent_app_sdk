@@ -4,7 +4,7 @@
 
 export class MessengerClient {
   constructor(options = {}) {
-    this.swUrl = options.serviceWorkerUrl || '/worker/sw.js';
+    this.swUrl = options.serviceWorkerUrl || '/sw.js';
     this.readinessTimeoutMs = Number(options.readinessTimeoutMs || 8000);
     this.rpcTimeoutMs = Number(options.rpcTimeoutMs || 60000);
     this.controller = null;

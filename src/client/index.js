@@ -9,7 +9,7 @@ import { isSuccess, isRouterSuccess, isDIDSuccess, isMessageOpSuccess, getErrorM
 export class DecentClient {
   constructor(config = {}) {
     this.messenger = new MessengerClient({
-      serviceWorkerUrl: config.serviceWorkerUrl || '/worker/sw.js',
+      serviceWorkerUrl: config.serviceWorkerUrl || '/sw.js',
       readinessTimeoutMs: config.readinessTimeoutMs || 8000,
       rpcTimeoutMs: config.rpcTimeoutMs || 60000,
     });
