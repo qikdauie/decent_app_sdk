@@ -1,4 +1,4 @@
-import { DecentApp } from '../../src/client/index.js';
+import { getReadyDecentClientSingleton } from '../../src/client/singleton.js';
 
 const out = document.querySelector('#out');
 const btnInit = document.querySelector('#init');
@@ -8,8 +8,7 @@ const btnB = document.querySelector('#send-b');
 let sdk;
 
 btnInit.addEventListener('click', async () => {
-  sdk = new DecentApp({ serviceWorkerUrl: '/worker/sw.js' });
-  await sdk.ready;
+  sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: './sw.js' });
   out.textContent += 'SDK ready (thread-based delivery configured in sw.js)\n';
   sdk.onMessage((incoming) => {
     out.textContent += 'Incoming: ' + JSON.stringify(incoming) + '\n';

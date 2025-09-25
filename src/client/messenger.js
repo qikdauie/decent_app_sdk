@@ -56,10 +56,49 @@ async function waitForControllerOrActive(registration, timeoutMs) {
     };
     navigator.serviceWorker.addEventListener('controllerchange', onChange);
   });
+  // Also wait for the registration to become active, even if the page
+  // is not yet controlled (e.g., missing clients.claim()). Once active,
+  // we can still message the SW via registration.active.postMessage().
+  const activationPromise = new Promise((resolve) => {
+    const tryResolveIfActive = () => {
+      try {
+        if (registration && registration.active) {
+          cleanup();
+          resolve(registration.active);
+        }
+      } catch {}
+    };
+
+    let installingRef = null;
+    const onStateChange = () => {
+      tryResolveIfActive();
+    };
+    const onUpdateFound = () => {
+      try {
+        installingRef = registration.installing || registration.waiting || installingRef;
+        if (installingRef) installingRef.addEventListener('statechange', onStateChange);
+        tryResolveIfActive();
+      } catch {}
+    };
+    const cleanup = () => {
+      try { registration.removeEventListener('updatefound', onUpdateFound); } catch {}
+      try { installingRef && installingRef.removeEventListener('statechange', onStateChange); } catch {}
+    };
+
+    // Hook current state and listeners
+    try {
+      registration.addEventListener('updatefound', onUpdateFound);
+      installingRef = registration.installing || registration.waiting || null;
+      if (installingRef) installingRef.addEventListener('statechange', onStateChange);
+    } catch {}
+
+    // Initial check in case activation raced ahead
+    tryResolveIfActive();
+  });
   const timeoutPromise = new Promise((_, reject) => {
     const id = setTimeout(() => { clearTimeout(id); reject(new Error(`Service Worker did not gain control within ${timeoutMs}ms.`)); }, timeoutMs);
   });
-  return Promise.race([controllerPromise, timeoutPromise]);
+  return Promise.race([controllerPromise, activationPromise, timeoutPromise]);
 }
 
 

@@ -1,4 +1,4 @@
-export interface DecentAppOptions {
+export interface DecentClientOptions {
   serviceWorkerUrl?: string;
   readinessTimeoutMs?: number;
   rpcTimeoutMs?: number;
@@ -10,8 +10,8 @@ export interface ProtocolCapability {
   roles?: string[];
 }
 
-export class DecentApp {
-  constructor(config?: DecentAppOptions);
+export class DecentClient {
+  constructor(config?: DecentClientOptions);
   ready: Promise<void>;
   messenger: any;
   protocols: ProtocolHelpers;
@@ -30,6 +30,9 @@ export class DecentApp {
   getLastError(result: any): string | null;
   onMessage(cb: (raw: any) => void): () => void;
 }
+
+export declare function getDecentClient(options?: DecentClientOptions): DecentClient;
+export declare function getReadyDecentClient(options?: DecentClientOptions): Promise<DecentClient>;
 
 // RouterResult enum from IDL
 export type RouterResult = 

@@ -7,7 +7,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ## [0.1.0] - 2025-09-24
 ### Added
 - Initial public release of the Decent Application SDK.
-- Browser-first client (`DecentApp`) with helper APIs and response utilities.
+- Browser-first client (`DecentClient`) with helper APIs and response utilities.
 - Service Worker initialization (`initServiceWorker`) with RPC routing and delivery strategies.
 - Pluggable protocol framework with built-in Discover Features and App Intents protocols.
 - Protocol and permission helper APIs.

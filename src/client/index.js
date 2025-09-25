@@ -6,7 +6,7 @@ import { isSuccess, isRouterSuccess, isDIDSuccess, isMessageOpSuccess, getErrorM
 /**
  * Main SDK class exposed to developers.
  */
-export class DecentApp {
+export class DecentClient {
   constructor(config = {}) {
     this.messenger = new MessengerClient({
       serviceWorkerUrl: config.serviceWorkerUrl || '/worker/sw.js',
@@ -88,3 +88,4 @@ export class DecentApp {
 export { createProtocolHelpers } from './protocols.js';
 export { createPermissionHelpers } from './permissions.js';
 export { isRouterSuccess } from '../utils/response-helpers.js';
+export { getDecentClientSingleton as getDecentClient, getReadyDecentClientSingleton as getReadyDecentClient } from './singleton.js';

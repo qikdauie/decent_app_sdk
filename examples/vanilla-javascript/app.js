@@ -1,11 +1,10 @@
-import { DecentApp } from '../../src/client/index.js';
+import { getReadyDecentClientSingleton } from '../../src/client/singleton.js';
 
 const out = document.querySelector('#out');
 const btn = document.querySelector('#init');
 
 btn.addEventListener('click', async () => {
-  const sdk = new DecentApp({ serviceWorkerUrl: '/worker/sw.js' });
-  await sdk.ready;
+  const sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: '/worker/sw.js' });
   out.textContent = 'SDK ready\n';
   const did = await sdk.getDID();
   out.textContent += 'DID: ' + JSON.stringify(did) + '\n';

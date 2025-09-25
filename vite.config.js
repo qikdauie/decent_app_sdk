@@ -11,6 +11,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         'client/index': resolve(__dirname, 'src/client/index.js'),
+        'client/singleton': resolve(__dirname, 'src/client/singleton.js'),
         'service-worker/index': resolve(__dirname, 'src/service-worker/index.js'),
         'protocols/index': resolve(__dirname, 'src/protocols/index.js'),
         'components/index': resolve(__dirname, 'src/components/index.js'),

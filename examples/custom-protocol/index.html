@@ -10,11 +10,10 @@
     <button id="hello">Send Hello</button>
     <pre id="out"></pre>
     <script type="module">
-      import { DecentApp } from '../../src/client/index.js';
+      import { getReadyDecentClientSingleton } from '../../src/client/singleton.js';
       const out = document.querySelector('#out');
       const btn = document.querySelector('#hello');
-      const sdk = new DecentApp({ serviceWorkerUrl: './sw.js' });
-      await sdk.ready;
+      const sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: './sw.js' });
       btn.addEventListener('click', async () => {
         const didInfo = await sdk.getDID();
         out.textContent = 'My DID: ' + JSON.stringify(didInfo) + '\n';

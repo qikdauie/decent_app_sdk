@@ -1,10 +1,9 @@
-import { DecentApp } from '../../src/client/index.js';
+import { getReadyDecentClientSingleton } from '../../src/client/singleton.js';
 
 const out = document.querySelector('#out');
 const btn = document.querySelector('#discover');
 
-const sdk = new DecentApp({ serviceWorkerUrl: '/worker/sw.js' });
-await sdk.ready;
+const sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: '/worker/sw.js' });
 
 btn.addEventListener('click', async () => {
   const providers = await sdk.protocols.intents.discover(['*'], 800);

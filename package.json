@@ -11,6 +11,10 @@
       "import": "./dist/client/index.js",
       "types": "./src/types/index.d.ts"
     },
+    "./singleton": {
+      "import": "./dist/client/singleton.js",
+      "types": "./src/types/index.d.ts"
+    },
     "./client": {
       "import": "./dist/client/index.js",
       "types": "./src/types/index.d.ts"

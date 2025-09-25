@@ -1,7 +1,7 @@
 ### API Reference
 
-#### DecentApp
-- new DecentApp(options)
+#### DecentClient
+- new DecentClient(options)
 - ready: Promise<void>
 - getDID(): Promise<PeerDIDResult>
 - pack(dest, type, bodyJson, attachments?, replyTo?): Promise<MessageOpResult>

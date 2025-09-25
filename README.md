@@ -4,7 +4,7 @@ Overview
 
 The Decent Application SDK is a JavaScript-first DIDComm v2 toolkit for the web. It provides:
 
-- A browser-friendly client API (`DecentApp`) for common DID operations and messaging
+- A browser-friendly client API (`DecentClient`) for common DID operations and messaging
 - A Service Worker runtime with an RPC bridge, message delivery strategies, and protocol routing
 - A pluggable protocol framework with helpers for feature discovery and app intents
 
@@ -32,13 +32,13 @@ initServiceWorker({ builtInProtocols: true });
 
 ```js
 // app.js
-import { DecentApp } from 'decent_app_sdk';
+import { DecentClient } from 'decent_app_sdk';
 
 // Register the Service Worker
 await navigator.serviceWorker.register('/sw.js');
 
 // Create the SDK client
-const app = new DecentApp({ serviceWorkerUrl: '/sw.js' });
+const app = new DecentClient({ serviceWorkerUrl: '/sw.js' });
 
 // Wait for the SDK to be ready
 await app.ready;
@@ -65,7 +65,7 @@ API Reference
 
 For complete APIs, see `docs/api-reference.md`.
 
-- `DecentApp` methods for DID and messaging
+- `DecentClient` methods for DID and messaging
 - Protocol helpers (feature discovery, app intents)
 - Permission helpers
 - Response helpers and error formats

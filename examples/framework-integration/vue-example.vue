@@ -1,13 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { DecentApp } from '../../src/client/index.js';
+import { getReadyDecentClientSingleton } from '../../src/client/singleton.js';
 
 const ready = ref(false);
 const did = ref(null);
 
 onMounted(async () => {
-  const sdk = new DecentApp({ serviceWorkerUrl: '/worker/sw.js' });
-  await sdk.ready;
+  const sdk = await getReadyDecentClientSingleton({ serviceWorkerUrl: '/worker/sw.js' });
   ready.value = true;
   did.value = await sdk.getDID();
 });
