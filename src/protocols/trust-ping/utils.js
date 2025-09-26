@@ -1,5 +1,6 @@
-export const TYPE_PING = 'https://didcomm.org/trust-ping/2.0/ping';
-export const TYPE_PING_RESPONSE = 'https://didcomm.org/trust-ping/2.0/ping-response';
+import { MessageTypes } from '../../constants/index.js';
+export const TYPE_PING = MessageTypes.TRUST_PING.PING;
+export const TYPE_PING_RESPONSE = MessageTypes.TRUST_PING.PING_RESPONSE;
 
 /** @type {Map<string, any>} */
 const timeoutsByKey = new Map();

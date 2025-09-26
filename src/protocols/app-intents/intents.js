@@ -1,4 +1,5 @@
-export const APP_INTENT_BASE = 'https://didcomm.org/app-intent/1.0';
+import { PIURI } from '../../constants/index.js';
+export const APP_INTENT_BASE = PIURI.APP_INTENT_V1;
 
 export const INTENTS = {
   SHARE: 'share',

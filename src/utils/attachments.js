@@ -25,9 +25,11 @@ export function normalizeAttachment(input, opts = /** @type {any} */({})) {
 
   const id = (typeof a.id === 'string' && a.id) ? a.id : generateAttachmentId();
   const legacyMime = typeof a.mime_type === 'string' ? a.mime_type : undefined;
-  const mimeType = typeof a.mimeType === 'string' ? a.mimeType : legacyMime;
-  const filename = a.filename != null ? String(a.filename) : undefined;
-  const description = a.description != null ? String(a.description) : undefined;
+  const legacyMedia = typeof a.media_type === 'string' ? a.media_type : (typeof a.mediaType === 'string' ? a.mediaType : undefined);
+  let mimeType = typeof a.mimeType === 'string' ? a.mimeType : (legacyMime ?? legacyMedia);
+  mimeType = typeof mimeType === 'string' ? mimeType : '';
+  let filename = a.filename != null ? String(a.filename) : '';
+  let description = a.description != null ? String(a.description) : '';
 
   // Extract data (embedded) and external url from multiple legacy shapes
   const legacyData = (a.data && typeof a.data === 'object') ? a.data : {};
@@ -38,11 +40,21 @@ export function normalizeAttachment(input, opts = /** @type {any} */({})) {
   const topUrl = typeof a.url === 'string' ? a.url : undefined;
   const topLinks = Array.isArray(a.links) ? a.links : undefined;
   const nestedLinks = Array.isArray(legacyData.links) ? legacyData.links : undefined;
-  const externalUrl = (Array.isArray(topLinks) && topLinks[0]) || (Array.isArray(nestedLinks) && nestedLinks[0]) || topUrl || (typeof a.externalUrl === 'string' ? a.externalUrl : undefined);
+  const externalUrlRaw = (Array.isArray(topLinks) && topLinks[0]) || (Array.isArray(nestedLinks) && nestedLinks[0]) || topUrl || (typeof a.externalUrl === 'string' ? a.externalUrl : undefined);
+  let externalUrl = '';
+  if (externalUrlRaw != null) {
+    externalUrl = String(externalUrlRaw);
+    if (externalUrl != '') externalUrl = externalUrl.trim();
+  }
 
-  let data = undefined;
+  let data = '';
   if (dataRaw != null) {
     data = typeof dataRaw === 'string' ? dataRaw : safeStringify(dataRaw);
+  }
+
+  // Prefer externalUrl when both are present to satisfy validation constraints
+  if (externalUrl !== '' && data) {
+    data = '';
   }
 
   const isExternal = Boolean(externalUrl);
@@ -51,7 +63,7 @@ export function normalizeAttachment(input, opts = /** @type {any} */({})) {
   try {
     const isDev = (typeof process !== 'undefined' && process?.env?.NODE_ENV !== 'production');
     if (isDev) {
-      if (a.mime_type || legacyData?.base64 || legacyData?.links || a.base64 || a.url || a.links) {
+      if (a.mime_type || a.media_type || a.mediaType || legacyData?.base64 || legacyData?.links || a.base64 || a.url || a.links) {
         console.warn('[attachments] Deprecated legacy attachment fields detected. Please use canonical format { mimeType, data | externalUrl }');
       }
     }
@@ -83,8 +95,13 @@ export function validateAttachment(att, opts = /** @type {any} */({})) {
   const mimeOk = typeof a.mimeType === 'string' && a.mimeType.length > 0;
   if (!mimeOk) return { ok: false, error: 'attachment.mimeType is required' };
 
-  const hasData = typeof a.data === 'string' && a.data.length > 0;
-  const hasUrl = typeof a.externalUrl === 'string' && a.externalUrl.length > 0;
+  const filenameTrimmed = a.filename != null ? String(a.filename).trim() : undefined;
+  const descriptionTrimmed = a.description != null ? String(a.description).trim() : undefined;
+  const dataTrimmed = typeof a.data === 'string' ? a.data : undefined;
+  const urlTrimmed = typeof a.externalUrl === 'string' ? String(a.externalUrl).trim() : undefined;
+
+  const hasData = typeof dataTrimmed === 'string' && dataTrimmed.length > 0;
+  const hasUrl = typeof urlTrimmed === 'string' && urlTrimmed.length > 0;
   const allowBoth = Boolean(opts.allowBoth);
   const allowNeither = Boolean(opts.allowNeither);
   if (!allowBoth && !allowNeither) {
@@ -94,11 +111,15 @@ export function validateAttachment(att, opts = /** @type {any} */({})) {
   }
 
   if (hasUrl) {
-    try { new URL(String(a.externalUrl)); } catch { return { ok: false, error: 'attachment.externalUrl must be a valid URL' }; }
+    try { new URL(String(urlTrimmed)); } catch { return { ok: false, error: 'attachment.externalUrl must be a valid URL' }; }
   }
 
-  if (a.filename != null && !String(a.filename)) return { ok: false, error: 'attachment.filename must be a non-empty string when provided' };
-  if (a.description != null && !String(a.description)) return { ok: false, error: 'attachment.description must be a non-empty string when provided' };
+  if (a.filename != null && !filenameTrimmed) return { ok: false, error: 'attachment.filename must be a non-empty string when provided' };
+  if (a.description != null && !descriptionTrimmed) return { ok: false, error: 'attachment.description must be a non-empty string when provided' };
+
+  if (a.isExternal === true && !hasUrl) {
+    return { ok: false, error: 'attachment.isExternal=true requires a valid externalUrl' };
+  }
 
   // MIME whitelist support
   if (opts?.mimeWhitelist) {

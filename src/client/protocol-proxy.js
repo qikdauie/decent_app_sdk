@@ -1,3 +1,4 @@
+import { RpcMethods } from '../constants/index.js';
 /**
  * ProtocolProxy — dynamic client for protocol methods via RPC.
  *
@@ -23,7 +24,7 @@ export function createProtocolProxy(messenger, protocolId, methodsMap = {}) {
   const declared = methodsMap && typeof methodsMap === 'object' ? methodsMap : {};
   const call = async (method, args) => {
     const timeout = getTimeoutOverrideFromArgs(args);
-    const res = await messenger.rpc('protocolInvoke', { protocolId: id, method, args, timeout });
+    const res = await messenger.rpc(RpcMethods.PROTOCOL_INVOKE, { protocolId: id, method, args, timeout });
     if (res && res.ok) return res.result;
     throw new Error(String(res && res.error ? res.error : 'protocolInvoke failed'));
   };
@@ -51,7 +52,7 @@ export class ProtocolProxyFactory {
   }
 
   async refresh() {
-    const res = await this.messenger.rpc('getProtocolMethods', {});
+    const res = await this.messenger.rpc(RpcMethods.GET_PROTOCOL_METHODS, {});
     if (!res || !res.ok) throw new Error(String(res?.error || 'getProtocolMethods failed'));
     this.methodsByProtocol = res.methods || {};
     // Rebuild proxies in cache to pick up new method maps

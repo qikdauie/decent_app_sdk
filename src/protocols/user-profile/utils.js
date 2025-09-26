@@ -1,5 +1,6 @@
-export const TYPE_PROFILE = 'https://didcomm.org/user-profile/1.0/profile';
-export const TYPE_REQUEST_PROFILE = 'https://didcomm.org/user-profile/1.0/request-profile';
+import { MessageTypes } from '../../constants/index.js';
+export const TYPE_PROFILE = MessageTypes.USER_PROFILE.PROFILE;
+export const TYPE_REQUEST_PROFILE = MessageTypes.USER_PROFILE.REQUEST_PROFILE;
 
 import { normalizeAttachment, validateAttachment } from '../../utils/attachments.js';
 

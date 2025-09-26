@@ -2,6 +2,7 @@ import { MessengerClient } from './messenger.js';
 import { createProtocolHelpers } from './protocols.js';
 import { createPermissionHelpers } from './permissions.js';
 import { isSuccess, isRouterSuccess, isDIDSuccess, isMessageOpSuccess, getErrorMessage } from '../utils/response-helpers.js';
+import { RpcMethods } from '../constants/index.js';
 
 /**
  * Main SDK class exposed to developers.
@@ -20,23 +21,23 @@ export class DecentClient {
 
   // Low-level convenience wrappers with basic error boundaries
   async getDID() {
-    try { return await this.messenger.rpc('getDID'); }
+    try { return await this.messenger.rpc(RpcMethods.GET_DID); }
     catch (e) { return { success: false, error_code: 1, error: String(e?.message || e), did: '', did_document: '', public_key: '' }; }
   }
   async registerAddress(did) {
-    try { return await this.messenger.rpc('registerAddress', { did }); }
+    try { return await this.messenger.rpc(RpcMethods.REGISTER_ADDRESS, { did }); }
     catch (e) { return 'unknown-error'; }
   }
   async pack(dest, type, bodyJson, attachments = [], replyTo = "") {
-    try { return await this.messenger.rpc('packMessage', { dest, type, body: bodyJson, attachments, replyTo }); }
+    try { return await this.messenger.rpc(RpcMethods.PACK_MESSAGE, { dest, type, body: bodyJson, attachments, replyTo }); }
     catch (e) { return { success: false, error_code: 1, error: String(e?.message || e), message: '' }; }
   }
   async unpack(raw) {
-    try { return await this.messenger.rpc('unpackMessage', { raw }); }
+    try { return await this.messenger.rpc(RpcMethods.UNPACK_MESSAGE, { raw }); }
     catch (e) { return { success: false, error_code: 1, error: String(e?.message || e), message: '' }; }
   }
   async send(dest, packed, threadId) {
-    try { return await this.messenger.rpc('send', { dest, packed, threadId }); }
+    try { return await this.messenger.rpc(RpcMethods.SEND, { dest, packed, threadId }); }
     catch (e) { return 'unknown-error'; }
   }
 

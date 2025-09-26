@@ -1,4 +1,5 @@
-export const INVITATION_TYPE = 'https://didcomm.org/out-of-band/2.0/invitation';
+import { MessageTypes } from '../../constants/index.js';
+export const INVITATION_TYPE = MessageTypes.OUT_OF_BAND.INVITATION;
 
 export function base64urlEncode(input) {
   try {
@@ -58,7 +59,7 @@ export function buildInvitationUrl(invitation, { baseUrl } = /** @type {any} */ 
     id: String(invitation?.id || ''),
     from: invitation?.from ? String(invitation.from) : undefined,
     body: invitation?.body || {},
-    attachments: Array.isArray(invitation?.attachments) ? invitation.attachments.map(sharedNormalizeAttachment) : undefined,
+    attachments: Array.isArray(invitation?.attachments) ? invitation.attachments.map((a) => sharedNormalizeAttachment(a)) : undefined,
   };
   const encoded = base64urlEncode(JSON.stringify(payload));
   const origin = baseUrl || (typeof location !== 'undefined' ? location.origin : 'https://example.org');

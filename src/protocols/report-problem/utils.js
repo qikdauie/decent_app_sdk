@@ -1,4 +1,5 @@
-export const PROBLEM_REPORT_TYPE = 'https://didcomm.org/report-problem/2.0/problem-report';
+import { MessageTypes } from '../../constants/index.js';
+export const PROBLEM_REPORT_TYPE = MessageTypes.REPORT_PROBLEM.PROBLEM_REPORT;
 
 export const PROBLEM_CODES = {
   request_not_accepted: 'request_not_accepted',

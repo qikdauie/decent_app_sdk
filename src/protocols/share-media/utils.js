@@ -1,5 +1,6 @@
-export const SHARE_MEDIA_TYPE = 'https://didcomm.org/share-media/1.0/share';
-export const REQUEST_MEDIA_TYPE = 'https://didcomm.org/share-media/1.0/request';
+import { MessageTypes } from '../../constants/index.js';
+export const SHARE_MEDIA_TYPE = MessageTypes.SHARE_MEDIA.SHARE;
+export const REQUEST_MEDIA_TYPE = MessageTypes.SHARE_MEDIA.REQUEST;
 
 const SUPPORTED_MEDIA_PREFIXES = ['image/', 'video/', 'audio/', 'application/pdf'];
 const DEFAULT_SIZE_LIMIT = 2 * 1024 * 1024; // 2 MB
@@ -17,7 +18,7 @@ export function isSupportedMime(mime) {
 }
 
 /**
- * @param {{ mime_type?: string, filename?: string, base64?: string, url?: string }} [opts]
+ * @param {{ mime_type?: string, mimeType?: string, filename?: string, base64?: string, url?: string, data?: string, externalUrl?: string, id?: string }} [opts]
  */
 export function buildMediaAttachment({ mime_type, mimeType, filename, base64, url, data, externalUrl, id } = /** @type {any} */ ({})) {
   const raw = { id, mime_type: mime_type || undefined, mimeType, filename, base64, url, data, externalUrl };

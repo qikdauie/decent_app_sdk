@@ -11,6 +11,14 @@
       "import": "./dist/client/index.js",
       "types": "./src/types/index.d.ts"
     },
+    "./constants": {
+      "import": "./dist/constants/index.js",
+      "types": "./src/types/constants.d.ts"
+    },
+    "./errors": {
+      "import": "./dist/errors/index.js",
+      "types": "./src/types/errors.d.ts"
+    },
     "./singleton": {
       "import": "./dist/client/singleton.js",
       "types": "./src/types/index.d.ts"

@@ -18,8 +18,10 @@ export function buildQueryBody(matchers = []) {
   return { queries };
 }
 
+import { MessageTypes } from '../../constants/message-types.js';
+
 export function isDisclosePacket(msg) {
-  return msg?.type === 'https://didcomm.org/discover-features/2.0/disclose';
+  return msg?.type === MessageTypes.DISCOVER_FEATURES.DISCLOSE;
 }
 
 export function extractFeatures(msg) {

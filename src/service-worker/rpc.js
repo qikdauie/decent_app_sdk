@@ -5,6 +5,7 @@
 
 import { discoverFeatures } from '../protocols/discover-features/index.js';
 import { actionToRequestType } from '../protocols/app-intents/intents.js';
+import { RpcMethods, RouterResults } from '../constants/index.js';
 import {
   ensureJson,
   generateCorrelationId, // TODO: Remove when packMessage returns threadId
@@ -14,6 +15,7 @@ import {
   embedCorrelationId,    // TODO: Remove when packMessage returns threadId
   createIntentResponseMatcher, // TODO: Remove when packMessage returns threadId
 } from '../utils/message-helpers.js';
+import { normalizeAttachments, validateAttachments } from '../utils/attachments.js';
 
 export function registerRpcHandlers(options) {
   const { registry, runtime = self, logger = console, config = {} } = options || {};
@@ -78,20 +80,20 @@ export function registerRpcHandlers(options) {
       (async () => {
         try {
           switch (kind) {
-            case 'getProtocolMethods': {
+            case RpcMethods.GET_PROTOCOL_METHODS: {
               try {
                 const map = registry.getAllProtocolClientMethods();
                 return ok({ methods: map });
               } catch (err) { return fail(err); }
             }
-            case 'protocolInvoke': {
+            case RpcMethods.PROTOCOL_INVOKE: {
               try {
                 const { protocolId, method, args = [], timeout } = data || {};
                 const result = await registry.invokeProtocolClientMethod(protocolId, method, Array.isArray(args) ? args : [args], timeout);
                 return ok({ result });
               } catch (err) { return fail(err); }
             }
-            case 'registerAddress': {
+            case RpcMethods.REGISTER_ADDRESS: {
               try {
                 const { did } = data || {};
                 const res = await (/** @type {any} */ (runtime))['registerAddress']?.(did);
@@ -99,10 +101,10 @@ export function registerRpcHandlers(options) {
               } catch (err) {
                 try { logger?.error?.('[SW][rpc] registerAddress failed', err); } catch {}
                 // RouterResult fallback on error
-                return reply('unknown-error');
+                return reply(RouterResults.UNKNOWN_ERROR);
               }
             }
-            case 'getDID': {
+            case RpcMethods.GET_DID: {
               try {
                 const res = await ((/** @type {any} */ (runtime))['getDID']?.() ?? Promise.reject(new Error('getDID not available')));
                 return reply(res);
@@ -111,17 +113,25 @@ export function registerRpcHandlers(options) {
                 return reply({ success: false, error_code: 1, error: String(err?.message || err), did: '', did_document: '', public_key: '' });
               }
             }
-            case 'packMessage': {
+            case RpcMethods.PACK_MESSAGE: {
               try {
                 const { dest, type, body, attachments = [], replyTo = "" } = data || {};
-                const res = await (/** @type {any} */ (runtime))['packMessage'](dest, type, body, attachments, replyTo);
+                // Normalize and validate attachments to ensure underlying env receives clean values
+                const normalized = normalizeAttachments(Array.isArray(attachments) ? attachments : []);
+                const validated = validateAttachments(normalized);
+                if (!validated.ok) {
+                  const details = (validated.errors || []).map(e => `#${e.index}:${e.error}`).join(', ');
+                  throw new Error(`[SW][rpc] Invalid attachments: ${details || 'validation failed'}`);
+                }
+                const bodyJson = ensureJson(body || {});
+                const res = await (/** @type {any} */ (runtime))['packMessage'](dest, type, bodyJson, normalized, replyTo);
                 return reply(res);
               } catch (err) {
                 try { logger?.error?.('[SW][rpc] packMessage failed', err); } catch {}
                 return reply({ success: false, error_code: 1, error: String(err?.message || err), message: '' });
               }
             }
-            case 'unpackMessage': {
+            case RpcMethods.UNPACK_MESSAGE: {
               try {
                 const { raw } = data || {};
                 const res = await (/** @type {any} */ (runtime))['unpackMessage'](raw);
@@ -131,7 +141,7 @@ export function registerRpcHandlers(options) {
                 return reply({ success: false, error_code: 1, error: String(err?.message || err), message: '' });
               }
             }
-            case 'send': {
+            case RpcMethods.SEND: {
               try {
                 const { dest, packed, threadId } = data || {};
                 const result = await (/** @type {any} */ (runtime))['sendMessage'](dest, packed);
@@ -150,24 +160,24 @@ export function registerRpcHandlers(options) {
                 return reply(result);
               } catch (err) {
                 try { logger?.error?.('[SW][rpc] send failed', err); } catch {}
-                return reply('unknown-error');
+                return reply(RouterResults.UNKNOWN_ERROR);
               }
             }
-            case 'discover': {
+            case RpcMethods.DISCOVER: {
               try {
                 const { matchers, timeout } = data || {};
                 const result = await discoverFeatures(runtime, matchers, timeout);
                 return ok({ result });
               } catch (err) { return fail(err); }
             }
-            case 'advertise': {
+            case RpcMethods.ADVERTISE: {
               try {
                 const { featureType, id, roles = [] } = data || {};
                 await registry.advertiseFeature(featureType, id, roles);
                 return ok({});
               } catch (err) { return fail(err); }
             }
-            case 'intentAdvertise': {
+            case RpcMethods.INTENT_ADVERTISE: {
               try {
                 const { action, requestType, roles = ['provider'] } = data || {};
                 const typeUri = requestType || (action ? actionToRequestType(action) : '');
@@ -176,7 +186,7 @@ export function registerRpcHandlers(options) {
                 return ok({});
               } catch (err) { return fail(err); }
             }
-            case 'intentDiscover': {
+            case RpcMethods.INTENT_DISCOVER: {
               try {
                 const { matchers = ['*'], timeout } = data || {};
                 const all = await discoverFeatures(runtime, matchers, timeout);
@@ -199,7 +209,7 @@ export function registerRpcHandlers(options) {
                 return ok({ result: filtered });
               } catch (err) { return fail(err); }
             }
-            case 'intentRequest': {
+            case RpcMethods.INTENT_REQUEST: {
               try {
                 const { dest, requestBody, requestType, waitForResult = true, timeout = 5000 } = data || {};
                 if (!requestType) throw new Error('requestType is required'); // Cannot infer until packMessage exposes threadId
@@ -222,7 +232,7 @@ export function registerRpcHandlers(options) {
                 return ok(result || {});
               } catch (err) { return fail(err); }
             }
-            case 'checkDidcommPermission': {
+            case RpcMethods.CHECK_PERMISSION: {
               try {
                 const { protocolUri, messageTypeUri } = data || {};
                 const granted = await (/** @type {any} */ (runtime))['checkDidcommPermission']?.(protocolUri, messageTypeUri);
@@ -232,7 +242,7 @@ export function registerRpcHandlers(options) {
                 return reply(false);
               }
             }
-            case 'checkMultipleDidcommPermissions': {
+            case RpcMethods.CHECK_MULTIPLE_PERMISSIONS: {
               try {
                 const { protocolUris = [], messageTypeUris = [] } = data || {};
                 const n = Math.min(protocolUris.length, messageTypeUris.length);
@@ -245,7 +255,7 @@ export function registerRpcHandlers(options) {
                 return reply([]);
               }
             }
-            case 'requestDidcommPermissions': {
+            case RpcMethods.REQUEST_PERMISSIONS: {
               try {
                 const { requests = [] } = data || {};
                 const result = await (/** @type {any} */ (runtime))['requestDidcommPermissions']?.(requests);
@@ -255,7 +265,7 @@ export function registerRpcHandlers(options) {
                 return reply({ success: false, grantedPermissions: [], failedProtocols: [], errorMessage: 'RPC failed' });
               }
             }
-            case 'listGrantedDidcommPermissions': {
+            case RpcMethods.LIST_GRANTED_PERMISSIONS: {
               try {
                 const { protocolUris = [] } = data || {};
                 const list = await (/** @type {any} */ (runtime))['listGrantedDidcommPermissions']?.(protocolUris);

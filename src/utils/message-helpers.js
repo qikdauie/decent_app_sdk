@@ -59,17 +59,19 @@ export function extractCorrelationId(envelopeOrBody) {
 }
 
 // Useful utility that can remain
+import { PIURI } from '../constants/index.js';
+
 export function isIntentResponse(type) {
   try {
     const t = String(type || '');
-    return t.startsWith('https://didcomm.org/app-intent/1.0/') && t.endsWith('-response');
+    return t.startsWith(PIURI.APP_INTENT_V1 + '/') && t.endsWith('-response');
   } catch { return false; }
 }
 
 export function isIntentDecline(type) {
   try {
     const t = String(type || '');
-    return t === 'https://didcomm.org/app-intent/1.0/decline';
+    return t === (PIURI.APP_INTENT_V1 + '/decline');
   } catch { return false; }
 }
 

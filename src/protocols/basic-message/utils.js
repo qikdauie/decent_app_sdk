@@ -1,4 +1,5 @@
-export const MESSAGE_TYPE = 'https://didcomm.org/basicmessage/1.0/message';
+import { MessageTypes } from '../../constants/index.js';
+export const MESSAGE_TYPE = MessageTypes.BASIC_MESSAGE.MESSAGE;
 
 export function isValidBasicMessage(body) {
   if (!body || typeof body !== 'object') return false;
@@ -7,7 +8,10 @@ export function isValidBasicMessage(body) {
   return true;
 }
 
-export function buildBasicMessageBody({ content, sent_time } = {}) {
+/**
+ * @param {{ content?: string, sent_time?: string }} [opts]
+ */
+export function buildBasicMessageBody({ content, sent_time } = /** @type {any} */ ({})) {
   const nowIso = new Date().toISOString();
   const body = { content: String(content || '') };
   if (!body.content) throw new Error('content is required');

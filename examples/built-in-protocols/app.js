@@ -102,7 +102,11 @@ shareMediaBtn.addEventListener('click', async () => {
   // { mimeType: 'image/jpeg', filename: 'photo.jpg', externalUrl: 'https://...' }
   // Legacy format (still supported) for reference:
   // { mime_type: 'image/jpeg', filename: 'photo.jpg', base64: '...', url: 'https://...' }
-  const media = { mimeType: mediaMime.value, filename: mediaFilename.value, data: mediaBase64.value, externalUrl: mediaUrl.value };
+  const url = String(mediaUrl.value || '').trim();
+  const base64 = String(mediaBase64.value || '');
+  const media = url
+    ? { mimeType: mediaMime.value, filename: mediaFilename.value, externalUrl: url }
+    : { mimeType: mediaMime.value, filename: mediaFilename.value, data: base64 };
   await sdk.protocols['share-media-v1'].shareMedia(to, media, { note: 'example' });
   out.textContent = 'Shared media.';
 });

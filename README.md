@@ -16,6 +16,11 @@ Installation
 npm install decent_app_sdk
 ```
 
+Note on module format
+
+- This package is ESM-only. It exposes `"type": "module"` and `exports.import` entries.
+- CommonJS `require()` is not supported. Use native ESM `import` or a bundler that supports ESM.
+
 Quick Start
 
 1) Add a Service Worker (sw.js):
