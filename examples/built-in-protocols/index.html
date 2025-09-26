@@ -7,7 +7,61 @@
   </head>
   <body>
     <h1>Built-in Protocols</h1>
-    <button id="discover">Discover App-Intent Providers</button>
+    <section>
+      <h2>Discover App-Intent Providers</h2>
+      <button id="discover">Discover</button>
+    </section>
+
+    <section>
+      <h2>Basic Message</h2>
+      <input id="msgTo" placeholder="To DID" />
+      <input id="msgContent" placeholder="Message" />
+      <button id="sendMsg">Send Message</button>
+      <button id="loadInbox">Load Inbox</button>
+      <pre id="inbox"></pre>
+    </section>
+
+    <section>
+      <h2>User Profile</h2>
+      <input id="profTo" placeholder="Peer DID" />
+      <input id="displayName" placeholder="Display Name" />
+      <input id="description" placeholder="Description" />
+      <button id="sendProfile">Send Profile</button>
+      <button id="requestProfile">Request Profile</button>
+      <pre id="profileOut"></pre>
+    </section>
+
+    <section>
+      <h2>Out-of-Band</h2>
+      <button id="createInvite">Create Invitation</button>
+      <input id="inviteUrl" placeholder="Paste invitation URL" />
+      <button id="parseInvite">Parse</button>
+      <pre id="inviteOut"></pre>
+    </section>
+
+    <section>
+      <h2>Report Problem</h2>
+      <input id="rpTo" placeholder="To DID" />
+      <input id="rpCode" placeholder="problem-code" />
+      <input id="rpExplain" placeholder="explain" />
+      <button id="sendReport">Send Report</button>
+      <button id="loadReports">Load Reports</button>
+      <pre id="reportsOut"></pre>
+    </section>
+
+    <section>
+      <h2>Share Media</h2>
+      <input id="mediaTo" placeholder="To DID" />
+      <input id="mediaMime" placeholder="mime/type" />
+      <input id="mediaFilename" placeholder="filename" />
+      <input id="mediaBase64" placeholder="base64 data (optional)" />
+      <input id="mediaUrl" placeholder="link URL (optional)" />
+      <button id="shareMedia">Share</button>
+      <button id="loadMedia">Load Received</button>
+      <pre id="mediaOut"></pre>
+    </section>
+
+    <h2>Output</h2>
     <pre id="out"></pre>
     <script type="module" src="./app.js"></script>
   </body>

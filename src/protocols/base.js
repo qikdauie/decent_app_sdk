@@ -99,11 +99,19 @@ export class BaseProtocol {
       if (!opts.match) throw new Error('waitForResponse requires explicit match when skipSend=true');
     }
 
-    // Listen for delivery events and attempt to match using provided matcher.
+    // Listen for rpc-delivery first (already unpacked envelope), then fall back to delivery+unpack
+    /** @type {null | (() => void)} */
     let removeListener = null;
     const awaitMatch = () => new Promise((resolve) => {
       let settled = false;
-      const done = (val) => { if (settled) return; settled = true; try { self.removeEventListener('delivery', onDelivery); } catch {} resolve(val); };
+      const done = (val) => { if (settled) return; settled = true; try { self.removeEventListener('delivery', onDelivery); } catch {} try { self.removeEventListener('rpc-delivery', onRpcDelivery); } catch {} resolve(val); };
+      const onRpcDelivery = (evt) => {
+        try {
+          const env = (/** @type {any} */ (evt)).data;
+          const matchFn = typeof opts.match === 'function' ? opts.match : (() => false);
+          if (matchFn(env)) done(env);
+        } catch {}
+      };
       const onDelivery = async (evt) => {
         try {
           const raw = (/** @type {any} */ (evt)).data;
@@ -115,7 +123,8 @@ export class BaseProtocol {
           if (matchFn(env)) done(env);
         } catch {}
       };
-      removeListener = () => { try { self.removeEventListener('delivery', onDelivery); } catch {} };
+      removeListener = () => { try { self.removeEventListener('delivery', onDelivery); } catch {} try { self.removeEventListener('rpc-delivery', onRpcDelivery); } catch {} };
+      try { self.addEventListener('rpc-delivery', onRpcDelivery); } catch {}
       try { self.addEventListener('delivery', onDelivery); } catch {}
     });
 
@@ -127,7 +136,7 @@ export class BaseProtocol {
       if (String(err?.message || '').includes('sendAndWaitForResponse timed out')) return null;
       throw err;
     } finally {
-      try { if (removeListener) removeListener(); } catch {}
+      try { if (typeof removeListener === 'function') removeListener(); } catch {}
     }
   }
 
@@ -139,10 +148,17 @@ export class BaseProtocol {
   async waitForResponse(opts) {
     if (!opts || typeof opts.match !== 'function') throw new Error('waitForResponse requires a match function');
     const timeoutMs = Number.isFinite(opts.timeoutMs) ? Number(opts.timeoutMs) : 5000;
+    /** @type {null | (() => void)} */
     let removeListener = null;
     const awaitMatch = () => new Promise((resolve) => {
       let settled = false;
-      const done = (val) => { if (settled) return; settled = true; try { self.removeEventListener('delivery', onDelivery); } catch {} resolve(val); };
+      const done = (val) => { if (settled) return; settled = true; try { self.removeEventListener('delivery', onDelivery); } catch {} try { self.removeEventListener('rpc-delivery', onRpcDelivery); } catch {} resolve(val); };
+      const onRpcDelivery = (evt) => {
+        try {
+          const env = (/** @type {any} */ (evt)).data;
+          if (opts.match(env)) done(env);
+        } catch {}
+      };
       const onDelivery = async (evt) => {
         try {
           const raw = (/** @type {any} */ (evt)).data;
@@ -153,7 +169,8 @@ export class BaseProtocol {
           if (opts.match(env)) done(env);
         } catch {}
       };
-      removeListener = () => { try { self.removeEventListener('delivery', onDelivery); } catch {} };
+      removeListener = () => { try { self.removeEventListener('delivery', onDelivery); } catch {} try { self.removeEventListener('rpc-delivery', onRpcDelivery); } catch {} };
+      try { self.addEventListener('rpc-delivery', onRpcDelivery); } catch {}
       try { self.addEventListener('delivery', onDelivery); } catch {}
     });
 
@@ -165,7 +182,7 @@ export class BaseProtocol {
       if (String(err?.message || '').includes('waitForResponse timed out')) return null;
       throw err;
     } finally {
-      try { if (removeListener) removeListener(); } catch {}
+      try { if (typeof removeListener === 'function') removeListener(); } catch {}
     }
   }
 

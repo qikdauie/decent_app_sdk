@@ -67,7 +67,24 @@ export interface MessageOpResult {
   message: string;
 }
 
-// DIDComm attachment structure from IDL
+
+/**
+ * Canonical DIDComm attachment format used across the SDK.
+ * - Required: `id`, `mimeType`
+ * - Optional: `filename`, `description`, `data`, `externalUrl`, `isExternal`
+ * - Exactly one of `data` or `externalUrl` should be set for most use-cases.
+ * - `data` must be a string (e.g. base64 or JSON stringified payloads).
+ * - `isExternal` defaults to false; when `externalUrl` is present it is set to true by helpers.
+ * - Legacy compatibility: the SDK `normalizeAttachment()` accepts legacy shapes (mime_type, data.base64, data.links, url, links) and converts them.
+ *
+ * Examples:
+ * - Embedded base64 image:
+ *   { id: 'photo-1', mimeType: 'image/jpeg', filename: 'photo.jpg', data: 'base64...' }
+ * - External URL document:
+ *   { id: 'doc-1', mimeType: 'application/pdf', filename: 'file.pdf', externalUrl: 'https://example.org/file.pdf', isExternal: true }
+ * - JSON payload:
+ *   { id: 'meta-1', mimeType: 'application/json', data: '{"k":"v"}' }
+ */
 export interface DIDCommAttachment {
   id: string;
   mimeType: string;

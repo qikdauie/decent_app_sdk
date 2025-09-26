@@ -70,6 +70,42 @@ Supported kinds and payloads:
   - Request: `{ kind: 'send', data: { dest, packed, threadId? } }`
   - Response: RouterResult (string), typically `'success' | ...`
 
+### Attachments
+
+The SDK uses a canonical `DIDCommAttachment` format across all protocols. This format is enforced at the Service Worker boundary and accepted by all helpers.
+
+- Required: `id` (string), `mimeType` (string)
+- Optional: `filename`, `description`, `data`, `externalUrl`, `isExternal`
+- Exactly one of `data` or `externalUrl` should be present in typical usage
+- `data` must be a string (e.g., base64 or JSON string); JSON payloads should be stringified
+- `isExternal` defaults to `false`; when `externalUrl` is present it is set to `true`
+
+Examples:
+
+```js
+// Embedded base64 image
+{ id: 'photo-1', mimeType: 'image/jpeg', filename: 'photo.jpg', data: 'base64...' }
+
+// External URL document
+{ id: 'doc-1', mimeType: 'application/pdf', filename: 'file.pdf', externalUrl: 'https://example.org/file.pdf', isExternal: true }
+
+// JSON data payload
+{ id: 'meta-1', mimeType: 'application/json', data: JSON.stringify({ k: 'v' }) }
+```
+
+Legacy compatibility:
+
+- The SDK accepts legacy shapes and converts them automatically: `mime_type`, nested `data.base64`, `data.links`, `url`, `links`.
+- Use the provided utilities to normalize and validate attachments:
+
+```js
+import { normalizeAttachment, validateAttachment } from '../src/utils/attachments.js';
+
+const att = normalizeAttachment({ mime_type: 'image/jpeg', data: { base64: '...' } });
+const res = validateAttachment(att);
+if (!res.ok) throw new Error(res.error);
+```
+
 - discover({ matchers, timeout }):
   - Request: `{ kind: 'discover', data: { matchers, timeout } }`
   - Response: `{ ok: true, result: Record<string, Feature[]> }`

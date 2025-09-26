@@ -180,3 +180,49 @@ try {
   console.error('Runtime behavior tests failed:', e?.message || e);
   process.exit(1);
 }
+
+// Attachment utilities tests
+try {
+  const attachmentUtils = await import(toFileUrl(fromRoot('src', 'utils', 'attachments.js')));
+  const { normalizeAttachment, validateAttachment, normalizeAttachments, validateAttachments } = attachmentUtils;
+
+  // normalizeAttachment legacy conversions
+  const n1 = normalizeAttachment({ mime_type: 'image/jpeg', data: { base64: 'AAAA' } });
+  if (!(n1.mimeType === 'image/jpeg' && n1.data === 'AAAA' && !n1.externalUrl && n1.id)) {
+    console.error('normalizeAttachment failed for legacy base64');
+    process.exit(1);
+  }
+  const n2 = normalizeAttachment({ mime_type: 'image/jpeg', data: { links: ['https://x'] } });
+  if (!(n2.mimeType === 'image/jpeg' && n2.externalUrl === 'https://x' && n2.isExternal === true)) {
+    console.error('normalizeAttachment failed for legacy links');
+    process.exit(1);
+  }
+  const n3 = normalizeAttachment({ mimeType: 'application/json', data: { k: 'v' } });
+  if (!(n3.mimeType === 'application/json' && typeof n3.data === 'string' && n3.data.includes('"k"'))) {
+    console.error('normalizeAttachment should stringify non-string data');
+    process.exit(1);
+  }
+
+  // validateAttachment basics
+  const v1 = validateAttachment({ id: 'a', mimeType: 'image/jpeg', data: 'AAAA' });
+  if (!v1.ok) { console.error('validateAttachment should accept basic embedded data'); process.exit(1); }
+  const v2 = validateAttachment({ id: 'b', mimeType: 'image/jpeg', externalUrl: 'https://x' });
+  if (!v2.ok) { console.error('validateAttachment should accept external url'); process.exit(1); }
+  const v3 = validateAttachment({ id: '', mimeType: 'x' });
+  if (v3.ok) { console.error('validateAttachment should reject empty id'); process.exit(1); }
+  const v4 = validateAttachment({ id: 'c', mimeType: 'x' });
+  if (v4.ok) { console.error('validateAttachment should require data or externalUrl'); process.exit(1); }
+
+  // Array helpers
+  const arr = normalizeAttachments([
+    { mime_type: 'image/jpeg', data: { base64: 'AAAA' } },
+    { mimeType: 'image/png', externalUrl: 'https://x' },
+  ]);
+  const arrV = validateAttachments(arr);
+  if (!arrV.ok) { console.error('validateAttachments should pass for normalized valid list'); process.exit(1); }
+
+  console.log('Attachment utilities tests passed.');
+} catch (e) {
+  console.error('Attachment utilities tests failed:', e?.message || e);
+  process.exit(1);
+}

@@ -2,6 +2,12 @@ import { ProtocolRegistry } from '../protocols/registry.js';
 import { DiscoverFeaturesProtocol } from '../protocols/discover-features/index.js';
 import { AppIntentsProtocol } from '../protocols/app-intents/index.js';
 import { TrustPingProtocol } from '../protocols/trust-ping/index.js';
+import { BasicMessageProtocol } from '../protocols/basic-message/index.js';
+import { UserProfileProtocol } from '../protocols/user-profile/index.js';
+import { OutOfBandProtocol } from '../protocols/out-of-band/index.js';
+import { ReportProblemProtocol } from '../protocols/report-problem/index.js';
+import { ShareMediaProtocol } from '../protocols/share-media/index.js';
+import { normalizeAttachments, validateAttachments } from '../utils/attachments.js';
 
 /**
  * Service Worker core harness for decent_app_sdk.
@@ -21,9 +27,10 @@ export function createWorkerCore(config = {}) {
     }
   } catch {}
 
-  async function pack(dest, type, bodyJson, attachments = [], replyTo = "") {
+  async function pack(dest, type, bodyJson, attachments = [], replyTo = "", headers = undefined) {
     try {
-      return await (/** @type {any} */ (self)).packMessage(dest, type, bodyJson, attachments, replyTo);
+      // Pass through headers if underlying implementation supports it (extra arg is safe)
+      return await (/** @type {any} */ (self)).packMessage(dest, type, bodyJson, attachments, replyTo, headers);
     } catch (err) {
       try { logger.error('[SW] pack failed', err); } catch {}
       return { success: false, error: String(err?.message || err) };
@@ -46,8 +53,17 @@ export function createWorkerCore(config = {}) {
       return { ok: false, error: String(err?.message || err) };
     }
   }
-  async function sendType(dest, type, body) {
-    const packed = await pack(dest, type, JSON.stringify(body || {}), [], "");
+  async function sendType(dest, type, body, options = {}) {
+    const rawAttachments = Array.isArray(options?.attachments) ? options.attachments : [];
+    const normalized = normalizeAttachments(rawAttachments);
+    const validated = validateAttachments(normalized);
+    if (!validated.ok) {
+      const details = (validated.errors || []).map(e => `#${e.index}:${e.error}`).join(', ');
+      throw new Error(`[SW] Invalid attachments: ${details || 'validation failed'}`);
+    }
+    const headers = (options && typeof options.headers === 'object') ? options.headers : undefined;
+    const replyTo = typeof options?.replyTo === 'string' ? options.replyTo : "";
+    const packed = await pack(dest, type, JSON.stringify(body || {}), normalized, replyTo, headers);
     if (!packed?.success) return false;
     const res = await send(dest, packed.message);
     return Boolean(res && res.ok);
@@ -63,6 +79,11 @@ export function createWorkerCore(config = {}) {
     registry.register(new DiscoverFeaturesProtocol());
     registry.register(new AppIntentsProtocol(intentsOptions));
     registry.register(new TrustPingProtocol());
+    registry.register(new BasicMessageProtocol());
+    registry.register(new UserProfileProtocol());
+    registry.register(new OutOfBandProtocol());
+    registry.register(new ReportProblemProtocol());
+    registry.register(new ShareMediaProtocol());
   }
 
   // Wire inbound delivery to registry routing (best-effort)
@@ -77,7 +98,7 @@ export function createWorkerCore(config = {}) {
               const up = await unpack(raw);
               if (up?.success) {
                 const msg = JSON.parse(up.message);
-                const envelope = { type: msg?.type, from: msg?.from, body: msg?.body, raw };
+                const envelope = { type: msg?.type, from: msg?.from, body: msg?.body, raw: msg };
                 try { await registry.routeIncoming(envelope); } catch {}
                 // TODO: Remove correlation forwarding once packMessage returns thread ID
                 try { self.dispatchEvent(new MessageEvent('rpc-delivery', { data: envelope })); } catch {}
