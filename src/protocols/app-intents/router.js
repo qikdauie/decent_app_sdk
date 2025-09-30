@@ -1,5 +1,5 @@
 import { requestTypeToAction, actionToResponseType } from './intents.js';
-import { extractCorrelationId } from '../../utils/message-helpers.js'; // TODO: Remove once threadId is available
+import { extractThid } from '../../utils/message-helpers.js';
 
 /**
  * IntentRouter — minimal, framework-agnostic router with pluggable handlers.
@@ -17,24 +17,22 @@ export class IntentRouter {
     const action = requestTypeToAction(type);
     if (action && this.onRequest) {
       try {
-        // TODO: Remove correlation ID extraction once packMessage returns thread ID
-        const correlationId = extractCorrelationId(envelope);
-        const outcome = await this.onRequest({ ...envelope, correlationId });
+        const thid = extractThid(envelope?.raw || envelope);
+        const outcome = await this.onRequest({ ...envelope, thid });
         if (outcome && (outcome.accept || outcome.response)) {
           const result = (outcome.result || (outcome.response && outcome.response.result) || {});
           const responseType = actionToResponseType(action);
-          // TODO: Include correlationId in response body until thread-based matching is available
-          await runtime.sendType(from, responseType, { status: 'ok', result, _correlationId: correlationId });
+          const headers = thid ? { thid } : undefined;
+          await runtime.sendType(from, responseType, { status: 'ok', result }, { headers, replyTo: JSON.stringify(envelope?.raw || {}) });
           return true;
         } else if (outcome && outcome.decline) {
           const d = outcome.decline;
+          const headers = thid ? { thid } : undefined;
           await runtime.sendType(from, 'https://didcomm.org/app-intent/1.0/decline', {
             reason: d.reason || 'not_supported',
             ...(d.detail ? { detail: d.detail } : {}),
             ...(d.retry_after_ms ? { retry_after_ms: d.retry_after_ms } : {}),
-            // TODO: Include correlationId in decline body until thread-based matching is available
-            _correlationId: correlationId,
-          });
+          }, { headers, replyTo: JSON.stringify(envelope?.raw || {}) });
           return true;
         }
       } catch (err) {

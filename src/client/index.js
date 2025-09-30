@@ -3,6 +3,7 @@ import { createProtocolHelpers } from './protocols.js';
 import { createPermissionHelpers } from './permissions.js';
 import { isSuccess, isRouterSuccess, isDIDSuccess, isMessageOpSuccess, getErrorMessage } from '../utils/response-helpers.js';
 import { RpcMethods } from '../constants/index.js';
+import { extractThid } from '../utils/message-helpers.js';
 
 /**
  * Main SDK class exposed to developers.
@@ -30,14 +31,17 @@ export class DecentClient {
   }
   async pack(dest, type, bodyJson, attachments = [], replyTo = "") {
     try { return await this.messenger.rpc(RpcMethods.PACK_MESSAGE, { dest, type, body: bodyJson, attachments, replyTo }); }
-    catch (e) { return { success: false, error_code: 1, error: String(e?.message || e), message: '' }; }
+    catch (e) { return { success: false, error_code: 1, error: String(e?.message || e), message: '', thid: undefined }; }
   }
   async unpack(raw) {
     try { return await this.messenger.rpc(RpcMethods.UNPACK_MESSAGE, { raw }); }
     catch (e) { return { success: false, error_code: 1, error: String(e?.message || e), message: '' }; }
   }
   async send(dest, packed, threadId) {
-    try { return await this.messenger.rpc(RpcMethods.SEND, { dest, packed, threadId }); }
+    try {
+      const inferred = threadId || (packed && typeof packed === 'object' ? extractThid(packed) : undefined);
+      return await this.messenger.rpc(RpcMethods.SEND, { dest, packed, threadId: inferred });
+    }
     catch (e) { return 'unknown-error'; }
   }
 
@@ -90,3 +94,4 @@ export { createProtocolHelpers } from './protocols.js';
 export { createPermissionHelpers } from './permissions.js';
 export { isRouterSuccess } from '../utils/response-helpers.js';
 export { getDecentClientSingleton as getDecentClient, getReadyDecentClientSingleton as getReadyDecentClient } from './singleton.js';
+export { extractThid } from '../utils/message-helpers.js';

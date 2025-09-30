@@ -36,7 +36,6 @@
 - permissions.getRequestError(requests): Promise<string | null>
 - permissions.listGranted(protocolUris): Promise<DIDCommProtocolPermission[]>
 
-
 ### Service Worker RPC Contract
 
 All RPCs are invoked via `MessageChannel` to the Service Worker. Each request includes `{ kind, data }` and a `port` for replies. Every response uses one of the two shapes:
@@ -58,9 +57,7 @@ Supported kinds and payloads:
 
 - packMessage({ dest, type, body, attachments?, replyTo? }):
   - Request: `{ kind: 'packMessage', data: { dest, type, body, attachments, replyTo } }`
-  - Response: environment-dependent (pass-through), typically `{ success: boolean, message?: string, error?: string }`
-
-  
+  - Response: environment-dependent (pass-through). When available, the response includes a `thid` field representing the DIDComm thread ID associated with the packed message. Typical shape: `{ success: boolean, message?: string, error?: string, thid?: string }`
 
 - unpackMessage({ raw }):
   - Request: `{ kind: 'unpackMessage', data: { raw } }`
@@ -126,7 +123,7 @@ if (!res.ok) throw new Error(res.error);
   - Request: `{ kind: 'intentRequest', data: { dest, requestBody, waitForResult?, timeout?, requestType } }`
   - Response: `{ ok: true, response?: Envelope, declined?: boolean }`
   - Note: when an intent is declined by the provider, `declined` will be `true` and `response` will contain the decline envelope (`type: 'https://didcomm.org/app-intent/1.0/decline'`).
-  - Note: requestType is required and cannot be inferred automatically due to current packMessage limitations.
+  - Note: when `packMessage` provides a `thid`, the service worker and router will use it for matching request/response pairs.
 
 - Permissions:
   - checkDidcommPermission({ protocolUri, messageTypeUri }) → `{ ok: true, granted: boolean }`
@@ -181,10 +178,11 @@ initServiceWorker({
 });
 ```
 
-### Intent request/response correlation
+### Thread-based matching
 
-- TODO: Remove this section once packMessage returns thread ID
-- Currently, correlation is implemented using a custom `_correlationId` embedded in request bodies and echoed by responses. The service worker will match responses to pending requests using this ID when `waitForResult=true`.
+- When available, the SDK uses DIDComm `~thread` `thid` for matching intent requests to responses.
+- `packMessage` may return a `thid`; downstream send and routing will propagate this via headers where appropriate.
+- For `intentRequest` with `waitForResult=true`, the service worker uses the thread ID to correlate the response to the originating request.
 - Timeout behavior: `intentRequest` accepts `timeout` (ms), default 5000. If no response is matched in time, the promise rejects with a timeout error.
 
 Error handling and return types

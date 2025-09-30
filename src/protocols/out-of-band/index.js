@@ -1,6 +1,11 @@
 import { BaseProtocol } from '../base.js';
 import { INVITATION_TYPE, buildInvitationBody, validateInvitation, buildInvitationUrl, parseInvitationUrl } from './utils.js';
-import { generateCorrelationId } from '../../utils/message-helpers.js';
+// Local ID generator independent of correlation utilities
+function generateRandomId() {
+  try { return (self?.crypto?.randomUUID && self.crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(36).slice(2)}`; } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+}
 
 export class OutOfBandProtocol extends BaseProtocol {
   constructor() {
@@ -34,7 +39,7 @@ export class OutOfBandProtocol extends BaseProtocol {
     if (methodName === 'createInvitation') {
       const [options = {}] = Array.isArray(args) ? args : [args];
       const body = buildInvitationBody(options || {});
-      const id = String(options?.id || generateCorrelationId());
+      const id = String(options?.id || generateRandomId());
       const from = options?.from ? String(options.from) : undefined;
       const attachments = Array.isArray(options?.attachments) ? options.attachments : undefined;
       const invitation = { type: INVITATION_TYPE, id, from, body, attachments };
@@ -52,14 +57,14 @@ export class OutOfBandProtocol extends BaseProtocol {
         // normalize provided object; accept legacy body.attachments for backward-compat
         const legacyBody = input?.body || input;
         const attachments = Array.isArray(legacyBody?.attachments) ? legacyBody.attachments : input?.attachments;
-        const inv = { type: INVITATION_TYPE, id: String(input?.id || generateCorrelationId()), from: input?.from, body: legacyBody?.body || legacyBody, attachments };
+        const inv = { type: INVITATION_TYPE, id: String(input?.id || generateRandomId()), from: input?.from, body: legacyBody?.body || legacyBody, attachments };
         if (validateInvitation(inv)) return { ok: true, invitation: inv };
       }
       throw new Error('invalid invitation input');
     }
     if (methodName === 'encodeInvitationUrl') {
       const [invitation, options = {}] = Array.isArray(args) ? args : [args];
-      const inv = invitation?.type ? invitation : { type: INVITATION_TYPE, id: String(invitation?.id || generateCorrelationId()), from: invitation?.from, body: invitation?.body || invitation, attachments: invitation?.attachments };
+      const inv = invitation?.type ? invitation : { type: INVITATION_TYPE, id: String(invitation?.id || generateRandomId()), from: invitation?.from, body: invitation?.body || invitation, attachments: invitation?.attachments };
       if (!validateInvitation(inv)) throw new Error('invalid invitation');
       const url = buildInvitationUrl(inv, { baseUrl: options?.baseUrl });
       return { ok: true, url };

@@ -1,12 +1,17 @@
 /** Attachment utilities: normalization, validation, and helpers */
 
-import { generateCorrelationId } from './message-helpers.js';
+// Local ID generator (previously used correlation IDs). Prefer crypto.randomUUID when available
+function generateRandomId() {
+  try { return (self?.crypto?.randomUUID && self.crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(36).slice(2)}`; } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+}
 
 /**
  * Generate a stable attachment id.
  */
 export function generateAttachmentId() {
-  return generateCorrelationId();
+  return generateRandomId();
 }
 
 /**
@@ -35,7 +40,29 @@ export function normalizeAttachment(input, opts = /** @type {any} */({})) {
   const legacyData = (a.data && typeof a.data === 'object') ? a.data : {};
   const topLevelBase64 = typeof a.base64 === 'string' ? a.base64 : undefined;
   const nestedBase64 = typeof legacyData.base64 === 'string' ? legacyData.base64 : undefined;
-  const dataRaw = (typeof a.data === 'string' ? a.data : undefined) || topLevelBase64 || nestedBase64;
+
+  // Determine primary data source with precedence: a.data (string) -> legacy base64 fields -> stringify other objects
+  /** @type {string|undefined} */
+  let primaryData;
+  if (a != null && Object.prototype.hasOwnProperty.call(a, 'data') && a.data != null) {
+    if (typeof a.data === 'string') {
+      primaryData = a.data;
+    } else if (typeof legacyData.base64 === 'string') {
+      // Preserve legacy nested base64 behavior
+      primaryData = legacyData.base64;
+    } else if (typeof topLevelBase64 === 'string') {
+      primaryData = topLevelBase64;
+    } else {
+      const mt = String(mimeType || '').toLowerCase();
+      if (mt.includes('json') || mt.startsWith('text/')) {
+        primaryData = safeStringify(a.data);
+      } else {
+        try { primaryData = String(a.data); } catch { primaryData = safeStringify(a.data); }
+      }
+    }
+  } else {
+    primaryData = topLevelBase64 || nestedBase64;
+  }
 
   const topUrl = typeof a.url === 'string' ? a.url : undefined;
   const topLinks = Array.isArray(a.links) ? a.links : undefined;
@@ -47,13 +74,10 @@ export function normalizeAttachment(input, opts = /** @type {any} */({})) {
     if (externalUrl != '') externalUrl = externalUrl.trim();
   }
 
-  let data = '';
-  if (dataRaw != null) {
-    data = typeof dataRaw === 'string' ? dataRaw : safeStringify(dataRaw);
-  }
+  let data = primaryData || '';
 
-  // Prefer externalUrl when both are present to satisfy validation constraints
-  if (externalUrl !== '' && data) {
+  // Prefer externalUrl when both are present to satisfy validation constraints (unless explicitly allowed)
+  if (externalUrl !== '' && data && !Boolean(opts.allowBoth)) {
     data = '';
   }
 

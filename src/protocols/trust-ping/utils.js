@@ -41,9 +41,9 @@ export function buildPingResponseBody({ comment } = {}) {
   return body;
 }
 
-import { extractThreadId as extractFromMessage } from '../../utils/message-helpers.js';
+import { extractThid as extractFromMessage } from '../../utils/message-helpers.js';
 
-export function extractThreadId(envelope) {
+export function extractThid(envelope) {
   try {
     // Prefer DIDComm v2: top-level thid/pthid from raw/unpacked message
     const rawMsg = envelope?.raw ? envelope.raw : envelope;

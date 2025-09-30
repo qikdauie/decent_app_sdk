@@ -1,5 +1,6 @@
 import { BaseProtocol } from '../base.js';
 import { buildQueryBody, isDisclosePacket, extractFeatures, matchFeatures } from './utils.js';
+import { extractThid } from '../../utils/message-helpers.js';
 
 export class DiscoverFeaturesProtocol extends BaseProtocol {
   constructor() {
@@ -32,7 +33,9 @@ export class DiscoverFeaturesProtocol extends BaseProtocol {
       const discloseBody = {
         disclosures: matched.map(f => ({ ['feature-type']: f.featureType, id: f.id, roles: f.roles || [] }))
       };
-      await this.runtime.sendType(from, 'https://didcomm.org/discover-features/2.0/disclose', discloseBody);
+      const thid = extractThid(envelope?.raw || envelope) || undefined;
+      const headers = thid ? { thid } : undefined;
+      await this.runtime.sendType(from, 'https://didcomm.org/discover-features/2.0/disclose', discloseBody, { headers, replyTo: JSON.stringify(envelope?.raw || {}) });
       return true;
     }
     return false;
@@ -70,19 +73,18 @@ export async function discoverFeatures(runtime, matchers = [], timeout = 400) {
 
   return await new Promise(resolve => {
     const featuresByPeer = {};
-    const listener = async (evt) => {
+    const listener = (evt) => {
       try {
-        const up = await runtime.unpack(evt.data);
-        if (!up?.success) return;
-        const msg = JSON.parse(up.message);
+        const env = (/** @type {any} */ (evt))?.data || {};
+        const msg = env?.raw || env;
         if (!isDisclosePacket(msg)) return;
-        const peer = msg.from;
+        const peer = msg?.from;
         const feats = extractFeatures(msg);
         if (peer && Array.isArray(feats)) featuresByPeer[peer] = feats;
       } catch {}
     };
-    try { self.addEventListener('delivery', listener); } catch {}
-    setTimeout(() => { try { self.removeEventListener('delivery', listener); } catch {} resolve(featuresByPeer); }, timeout);
+    try { self.addEventListener('rpc-delivery', listener); } catch {}
+    setTimeout(() => { try { self.removeEventListener('rpc-delivery', listener); } catch {} resolve(featuresByPeer); }, timeout);
   });
 }
 

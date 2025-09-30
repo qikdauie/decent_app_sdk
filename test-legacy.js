@@ -1,3 +1,5 @@
+// Copied from original test.js to preserve sanity checks while adding Vitest-based tests
+
 // Lightweight sanity checks for core SDK shapes (not full runtime tests)
 
 import fs from 'node:fs';
@@ -56,7 +58,7 @@ try {
 // Runtime behavior tests (mocked SW environment)
 try {
   const { initServiceWorker } = await import(toFileUrl(fromRoot('src', 'service-worker', 'index.js')));
-  const { extractThreadId } = await import(toFileUrl(fromRoot('src', 'utils', 'message-helpers.js')));
+  const { extractThid } = await import(toFileUrl(fromRoot('src', 'utils', 'message-helpers.js')));
   const responseHelpers = await import(toFileUrl(fromRoot('src', 'utils', 'response-helpers.js')));
 
   // Mock global self with required APIs
@@ -72,7 +74,7 @@ try {
   const selfMock = {
     addEventListener(type, fn) { (listeners[type] || (listeners[type] = [])).push(fn); },
     clients: { async matchAll() { return windowClients; } },
-    async packMessage(dest, type, bodyJson) { return { success: true, error_code: 0, error: '', message: JSON.stringify({ dest, type, body: JSON.parse(bodyJson) }) }; },
+    async packMessage(dest, type, bodyJson) { return { success: true, error_code: 0, error: '', message: JSON.stringify({ dest, type, body: JSON.parse(bodyJson), thid: 'thr-A' }), thid: 'thr-A' }; },
     async unpackMessage(raw) {
       try { return { success: true, error_code: 0, error: '', message: typeof raw === 'string' ? raw : JSON.stringify(raw) }; } catch { return { success: false, error_code: -1, error: 'unpack failed', message: '' }; }
     },
@@ -98,8 +100,8 @@ try {
   // 2) Thread ID extraction for v2 and v1
   const v2Msg = { thid: 't-123', type: 'test', body: {} };
   const v1Msg = { '~thread': { thid: 't-456' }, type: 'test', body: {} };
-  if (extractThreadId(v2Msg) !== 't-123') { console.error('extractThreadId failed for v2 thid'); process.exit(1); }
-  if (extractThreadId(JSON.stringify(v1Msg)) !== 't-456') { console.error('extractThreadId failed for v1 ~thread.thid via string'); process.exit(1); }
+  if (extractThid(v2Msg) !== 't-123') { console.error('extractThid failed for v2 thid'); process.exit(1); }
+  if (extractThid(JSON.stringify(v1Msg)) !== 't-456') { console.error('extractThid failed for v1 ~thread.thid via string'); process.exit(1); }
 
   // 3) Map a threadId on send via RPC path
   const { registerRpcHandlers } = await import(toFileUrl(fromRoot('src', 'service-worker', 'rpc.js')));
@@ -145,6 +147,7 @@ try {
     addEventListener(type, fn) { (listeners2[type] || (listeners2[type] = [])).push(fn); },
     clients: { async matchAll() { return windowClients; } },
     async unpackMessage(raw) { return { success: false }; },
+    async packMessage(dest, type, bodyJson) { return { success: true, error_code: 0, error: '', message: JSON.stringify({ dest, type, body: JSON.parse(bodyJson), thid: 'thr-B' }), thid: 'thr-B' }; },
   };
   // Clear client messages for clean assertion
   windowClients.forEach(c => { c.messages.length = 0; });
@@ -226,3 +229,5 @@ try {
   console.error('Attachment utilities tests failed:', e?.message || e);
   process.exit(1);
 }
+
+

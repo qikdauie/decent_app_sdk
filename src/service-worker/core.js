@@ -63,7 +63,11 @@ export function createWorkerCore(config = {}) {
     }
     const headers = (options && typeof options.headers === 'object') ? options.headers : undefined;
     const replyTo = typeof options?.replyTo === 'string' ? options.replyTo : "";
+    if (options?.replyTo && typeof options.replyTo !== 'string') {
+      try { logger?.warn?.('[SW][core] replyTo is not a string, converting to empty', { type: typeof options.replyTo }); } catch {}
+    }
     const packed = await pack(dest, type, JSON.stringify(body || {}), normalized, replyTo, headers);
+    try { logger?.log?.('[SW][core] packed message', { thid: packed?.thid, hasHeaders: !!headers, headerThid: headers?.thid }); } catch {}
     if (!packed?.success) return false;
     const res = await send(dest, packed.message);
     return Boolean(res && res.ok);

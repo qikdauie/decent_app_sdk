@@ -8,7 +8,7 @@ import {
   buildPingResponseBody,
   startPingTimeout,
   clearPingTimeout,
-  extractThreadId,
+  extractThid,
 } from './utils.js';
 
 export class TrustPingProtocol extends BaseProtocol {
@@ -45,10 +45,15 @@ export class TrustPingProtocol extends BaseProtocol {
       if (!from || !isValidPingBody(body)) return false;
 
       if (this.autoRespond && body?.response_requested !== false) {
-        const thid = extractThreadId(envelope) || undefined;
+        const thid = extractThid(envelope);
         const responseBody = buildPingResponseBody({ comment: body?.comment });
         try {
-          await this.runtime.sendType(from, TYPE_PING_RESPONSE, responseBody);
+          await this.runtime.sendType(
+            from,
+            TYPE_PING_RESPONSE,
+            responseBody,
+            thid ? { headers: { thid }, replyTo: JSON.stringify(envelope?.raw || {}) } : { replyTo: JSON.stringify(envelope?.raw || {}) }
+          );
         } catch (e) {
           try { this.runtime?.logger?.warn?.('trust-ping: failed to send ping-response', e); } catch {}
         }
@@ -58,7 +63,7 @@ export class TrustPingProtocol extends BaseProtocol {
 
     if (type === TYPE_PING_RESPONSE) {
       // Clear any pending timeout by thid if present
-      const thid = extractThreadId(envelope);
+      const thid = extractThid(envelope);
       if (thid) clearPingTimeout(from || '', thid);
       if (!isValidPingResponseBody(body)) return false;
       return true;

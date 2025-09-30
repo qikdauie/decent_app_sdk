@@ -16,7 +16,7 @@ btn.addEventListener('click', async () => {
     const dest = 'did:example:receiver';
     const packed = await sdk.pack(dest, 'https://didcomm.org/test/1.0/ping', JSON.stringify({}));
     if (packed?.success) {
-      const thid = 'thread-demo-123';
+      const thid = packed.thid || 'thread-demo-123';
       const ok = await sdk.send(dest, packed.message, thid);
       out.textContent += 'Sent with threadId=' + thid + ': ' + ok + '\n';
     }

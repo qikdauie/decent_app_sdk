@@ -138,7 +138,37 @@ Troubleshooting
 - Ensure the Service Worker is registered and controlling the page before using the client API.
 - If using `deliveryStrategy: 'thread'`, `autoUnpack` must be enabled.
 - Some operations require both parties to support the same protocol versions and message types.
-- For app-intents, a `requestType` is currently required due to thread ID limitations in `packMessage`.
+- For app-intents, `requestType` must be provided.
+
+Thread IDs and `packMessage`
+
+- When available, `packMessage` returns a `thid` representing the DIDComm thread ID for the packed message.
+- You can use this `thid` to correlate requests and responses in your app logic.
+
+Example (mirrors `examples/vanilla-javascript/app.js` usage):
+
+```js
+import { DecentClient } from 'decent_app_sdk';
+
+const app = new DecentClient({ serviceWorkerUrl: '/sw.js' });
+await app.ready;
+
+const dest = 'did:peer:xyz';
+const type = 'https://didcomm.org/app-intent/1.0/request';
+const body = { action: 'example.action' };
+
+const packed = await app.pack(dest, type, body);
+// packed may include packed.thid
+if (packed.success && packed.thid) {
+  console.log('thread id:', packed.thid);
+}
+
+// Optionally pass thread-aware options to higher-level helpers
+const res = await app.protocols.intents.request(dest, { action: 'example.action' }, { requestType: type });
+if (res.ok && res.response) {
+  console.log('intent response', res.response);
+}
+```
 
 Contributing
 

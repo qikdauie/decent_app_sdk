@@ -78,29 +78,30 @@ export class AppIntentsProtocol extends BaseProtocol {
     }
     if (methodName === 'request') {
       const [dest, requestBody, opts = {}] = Array.isArray(args) ? args : [args];
-      const { ensureJson, generateCorrelationId, embedCorrelationId, createIntentResponseMatcher } = await import('../../utils/message-helpers.js');
+      const { ensureJson, extractThid, isIntentResponse, isIntentDecline } = await import('../../utils/message-helpers.js');
       const requestType = opts.requestType;
       if (!requestType) throw new Error('requestType is required');
-      const correlationId = generateCorrelationId();
-      const bodyWithCid = embedCorrelationId(requestBody || {}, correlationId);
-      const packed = await this.runtime.pack(dest, requestType, ensureJson(bodyWithCid), [], "");
+      const packed = await this.runtime.pack(dest, requestType, ensureJson(requestBody || {}), [], "");
       if (!packed?.success) throw new Error(String(packed?.error || 'pack failed'));
+      const thid = packed?.thid || extractThid(packed?.message);
       await this.runtime.send(dest, packed.message);
       if (opts.waitForResult === false) return { ok: true };
-      createIntentResponseMatcher(correlationId); // registers internal matching
       const timeout = Number.isFinite(opts.timeout) ? Number(opts.timeout) : 15000;
       const result = await new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => reject(new Error('intentRequest timed out')), timeout);
+        if (!thid) { reject(new Error('intentRequest missing thread id')); return; }
+        const timeoutId = setTimeout(() => {
+          try { /* best-effort log */ console?.warn?.('[AppIntents] intentRequest timed out', { thid }); } catch {}
+          reject(new Error('intentRequest timed out'));
+        }, timeout);
         const onEvt = async (evt) => {
           try {
             const up = await this.runtime.unpack((/** @type {any} */ (evt)).data);
             if (!up?.success) return;
             const msg = JSON.parse(up.message);
             const env = { type: msg?.type, from: msg?.from, body: msg?.body, raw: msg };
-            const { extractCorrelationId, isIntentResponse, isIntentDecline } = await import('../../utils/message-helpers.js');
             if (!isIntentResponse(env.type) && !isIntentDecline(env.type)) return;
-            const got = extractCorrelationId(env);
-            if (String(got || '') !== correlationId) return;
+            const got = extractThid(env?.raw || env);
+            if (String(got || '') !== String(thid || '')) return;
             try { clearTimeout(timeoutId); } catch {}
             try { self.removeEventListener('delivery', onEvt); } catch {}
             resolve({ response: env, declined: isIntentDecline(env.type) });

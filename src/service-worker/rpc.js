@@ -8,13 +8,10 @@ import { actionToRequestType } from '../protocols/app-intents/intents.js';
 import { RpcMethods, RouterResults } from '../constants/index.js';
 import {
   ensureJson,
-  generateCorrelationId, // TODO: Remove when packMessage returns threadId
-  extractCorrelationId,  // TODO: Remove when packMessage returns threadId
   isIntentResponse,
   isIntentDecline,
-  embedCorrelationId,    // TODO: Remove when packMessage returns threadId
-  createIntentResponseMatcher, // TODO: Remove when packMessage returns threadId
 } from '../utils/message-helpers.js';
+import { extractThid } from '../utils/message-helpers.js';
 import { normalizeAttachments, validateAttachments } from '../utils/attachments.js';
 
 export function registerRpcHandlers(options) {
@@ -33,25 +30,30 @@ export function registerRpcHandlers(options) {
     }
   };
 
-  // TODO: Remove entire correlation ID system once packMessage returns thread ID
   /** @type {Map<string, { resolve: (value:any)=>void, reject: (err:any)=>void, timeoutId: any }>} */
-  const pendingByCorrelationId = new Map();
+  const pendingByThreadId = new Map();
 
-  // Wire delivery events for correlation matching (expects createWorkerCore to dispatch 'rpc-delivery' with unpacked envelope)
+  // Wire delivery events for thread-based intent matching (expects createWorkerCore to dispatch 'rpc-delivery' with unpacked envelope)
   try {
     runtime.addEventListener?.('rpc-delivery', (evt) => {
       try {
         const envelope = (/** @type {any} */ (evt))?.data || {};
         const type = String(envelope?.type || '');
         if (!type || (!isIntentResponse(type) && !isIntentDecline(type))) return;
-        const cid = extractCorrelationId(envelope);
-        if (!cid) return;
-        const pending = pendingByCorrelationId.get(String(cid));
-        if (!pending) return;
+        const thid = extractThid(envelope?.raw || envelope);
+        if (!thid) return;
+        const pending = pendingByThreadId.get(String(thid));
+        if (!pending) {
+          try { logger?.log?.('[SW][rpc] intent response received but no pending waiter', { thid }); } catch {}
+          return;
+        }
         try { clearTimeout(pending.timeoutId); } catch {}
-        pendingByCorrelationId.delete(String(cid));
+        pendingByThreadId.delete(String(thid));
         const declined = isIntentDecline(type);
-        try { pending.resolve({ response: envelope, ...(declined ? { declined: true } : {}) }); } catch {}
+        try {
+          try { logger?.log?.('[SW][rpc] intent response matched', { thid, declined }); } catch {}
+          pending.resolve({ response: envelope, ...(declined ? { declined: true } : {}) });
+        } catch {}
       } catch {}
     });
   } catch {}
@@ -125,7 +127,7 @@ export function registerRpcHandlers(options) {
                 }
                 const bodyJson = ensureJson(body || {});
                 const res = await (/** @type {any} */ (runtime))['packMessage'](dest, type, bodyJson, normalized, replyTo);
-                return reply(res);
+                return reply({ ...res, thid: res?.thid });
               } catch (err) {
                 try { logger?.error?.('[SW][rpc] packMessage failed', err); } catch {}
                 return reply({ success: false, error_code: 1, error: String(err?.message || err), message: '' });
@@ -146,8 +148,9 @@ export function registerRpcHandlers(options) {
                 const { dest, packed, threadId } = data || {};
                 const result = await (/** @type {any} */ (runtime))['sendMessage'](dest, packed);
                 try {
-                  if (threadId && evt?.source?.id) {
-                    threadToClient.set(String(threadId), { clientId: String((/** @type {any} */ (evt)).source.id), expiresAt: now() + THREAD_TTL_MS });
+                  const inferredThreadId = threadId || extractThid(packed) || undefined;
+                  if (inferredThreadId && evt?.source?.id) {
+                    threadToClient.set(String(inferredThreadId), { clientId: String((/** @type {any} */ (evt)).source.id), expiresAt: now() + THREAD_TTL_MS });
                     cleanThreads();
                     // Evict oldest mappings if exceeding cap (FIFO over Map insertion order)
                     while (threadToClient.size > MAX_THREAD_MAPPINGS) {
@@ -212,22 +215,24 @@ export function registerRpcHandlers(options) {
             case RpcMethods.INTENT_REQUEST: {
               try {
                 const { dest, requestBody, requestType, waitForResult = true, timeout = 5000 } = data || {};
-                if (!requestType) throw new Error('requestType is required'); // Cannot infer until packMessage exposes threadId
-                // TODO: Remove correlation ID workaround once packMessage returns thread ID
-                const correlationId = generateCorrelationId();
-                const bodyWithCid = embedCorrelationId(requestBody || {}, correlationId);
-                const packed = await (runtime.pack ? runtime.pack(dest, requestType, ensureJson(bodyWithCid), [], "") : (/** @type {any} */ (runtime))['packMessage'](dest, requestType, ensureJson(bodyWithCid), [], ""));
+                if (!requestType) throw new Error('requestType is required');
+                const packed = await (/** @type {any} */ (runtime))['packMessage'](dest, requestType, ensureJson(requestBody || {}), [], "");
                 if (!packed?.success) throw new Error(String(packed?.error || 'pack failed'));
-                await (runtime.send ? runtime.send(dest, packed.message) : (/** @type {any} */ (runtime))['sendMessage'](dest, packed.message));
+                const thid = packed?.thid || extractThid(packed?.message);
+                await (/** @type {any} */ (runtime))['sendMessage'](dest, packed.message);
                 if (!waitForResult) return ok({});
 
-                createIntentResponseMatcher(correlationId);
                 const result = await new Promise((resolve, reject) => {
+                  if (!thid) {
+                    reject(new Error('intentRequest missing thread id'));
+                    return;
+                  }
                   const timeoutId = setTimeout(() => {
-                    try { pendingByCorrelationId.delete(String(correlationId)); } catch {}
+                    try { pendingByThreadId.delete(String(thid)); } catch {}
                     reject(new Error('intentRequest timed out'));
                   }, timeout);
-                  pendingByCorrelationId.set(String(correlationId), { resolve, reject, timeoutId });
+                  try { logger?.log?.('[SW][rpc] intent waiter set', { thid }); } catch {}
+                  pendingByThreadId.set(String(thid), { resolve, reject, timeoutId });
                 });
                 return ok(result || {});
               } catch (err) { return fail(err); }
@@ -300,12 +305,13 @@ export function registerRpcHandlers(options) {
             if (up?.success) unpacked = JSON.parse(up.message);
           } catch {}
         }
-        const clientsList = await runtime.clients.matchAll({ includeUncontrolled: false, type: 'window' });
+        const clientsList = await runtime.clients.matchAll({ includeUncontrolled: true, type: 'window' });
+        try { logger?.log?.(`[SW][rpc] delivery fanout to ${String((clientsList && clientsList.length) || 0)} client(s)`); } catch {}
         if (deliveryStrategy === 'thread' && autoUnpack) {
           try {
             if (unpacked) {
-              const { extractThreadId } = await import('../utils/message-helpers.js');
-              const thid = extractThreadId(unpacked);
+              const { extractThid } = await import('../utils/message-helpers.js');
+              const thid = extractThid(unpacked);
               const mapping = thid ? threadToClient.get(String(thid)) : null;
               const clientId = mapping?.clientId;
               if (clientId) {
@@ -320,6 +326,7 @@ export function registerRpcHandlers(options) {
           // Fallback to broadcast if no mapping
         }
         for (const c of clientsList) {
+          try { logger?.log?.(`[SW][rpc] posting incoming to client ${String(c?.id || '')}`); } catch {}
           try { c.postMessage({ kind: 'incoming', raw: unpacked ?? raw }); } catch {}
         }
       } catch (err) {
