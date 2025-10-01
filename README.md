@@ -62,10 +62,10 @@ This SDK targets modern web apps and PWAs and emphasizes a clean client/SW separ
 
 | Method | Command | Use Case | Pros/Cons |
 |--------|---------|----------|-----------|
-| **Adding as Submodule** | `git submodule add <repository-url> path/to/decent_app_sdk` | Existing project | ✅ Version control, ❌ Requires build step |
-| **Cloning with Submodules** | `git clone --recurse-submodules <your-repo-url>` | New project | ✅ Complete setup, ❌ Requires build step |
-| **Initializing Submodules** | `git submodule init && git submodule update` | After regular clone | ✅ Updates existing, ❌ Manual step |
-| **Updating Submodules** | `git submodule update --remote --merge` | Keeping current | ✅ Latest changes, ❌ May break compatibility |
+| **Adding as Submodule** | `git submodule add <repository-url> path/to/decent_app_sdk` | Existing project
+| **Cloning with Submodules** | `git clone --recurse-submodules <your-repo-url>` | New project
+| **Initializing Submodules** | `git submodule init && git submodule update` | After regular clone
+| **Updating Submodules** | `git submodule update --remote --merge` | Keeping current
 
 ### Git Submodule Installation
 
