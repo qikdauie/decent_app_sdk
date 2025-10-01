@@ -60,8 +60,8 @@ This SDK targets modern web apps and PWAs and emphasizes a clean client/SW separ
 
 ### Installation Methods
 
-| Method | Command | Use Case | Pros/Cons |
-|--------|---------|----------|-----------|
+| Method | Command | Use Case |
+|--------|---------|----------|
 | **Adding as Submodule** | `git submodule add <repository-url> path/to/decent_app_sdk` | Existing project
 | **Cloning with Submodules** | `git clone --recurse-submodules <your-repo-url>` | New project
 | **Initializing Submodules** | `git submodule init && git submodule update` | After regular clone
