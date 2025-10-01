@@ -67,33 +67,6 @@ This SDK targets modern web apps and PWAs and emphasizes a clean client/SW separ
 | **Initializing Submodules** | `git submodule init && git submodule update` | After regular clone
 | **Updating Submodules** | `git submodule update --remote --merge` | Keeping current
 
-### Git Submodule Installation
-
-**Step 1: Add as Submodule (to an existing project):**
-```bash
-git submodule add <repository-url> path/to/decent_app_sdk
-```
-
-**Step 2: Cloning with Submodules:**
-```bash
-git clone --recurse-submodules <your-repo-url>
-```
-
-**Step 3: Initializing Submodules (after a regular clone):**
-```bash
-git submodule init && git submodule update
-```
-
-**Step 4: Updating Submodules:**
-```bash
-git submodule update --remote --merge
-```
-
-**Step 5: Building the SDK (when using as a submodule):**
-```bash
-cd path/to/decent_app_sdk && npm install && npm run build
-```
-
 ### Importing from Submodule
 
 When using the submodule, import from the built `dist/` outputs:
