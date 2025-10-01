@@ -6,7 +6,6 @@
 export const PIURI = Object.freeze({
   DISCOVER_FEATURES_V2: 'https://didcomm.org/discover-features/2.0',
   APP_INTENT_V1: 'https://didcomm.org/app-intent/1.0',
-  BASIC_MESSAGE_V1: 'https://didcomm.org/basicmessage/1.0',
   BASIC_MESSAGE_V2: 'https://didcomm.org/basicmessage/2.0',
   TRUST_PING_V2: 'https://didcomm.org/trust-ping/2.0',
   USER_PROFILE_V1: 'https://didcomm.org/user-profile/1.0',

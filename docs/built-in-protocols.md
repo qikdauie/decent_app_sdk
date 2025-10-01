@@ -1,86 +1,88 @@
 ### Built-in Protocols
 
-#### Discover-Features 2.0
-- Queries: `https://didcomm.org/discover-features/2.0/queries`
-- Disclose: `https://didcomm.org/discover-features/2.0/disclose`
+Table of Contents
 
-Helper: `protocols.discover(['message-type:*'])`
+- Overview
+- Discover-Features 2.0
+- App-Intents 1.0
+- Trust-Ping 2.0
+- Basic Message 2.0
+- User Profile 1.0
+- Out-of-Band 2.0
+- Report Problem 2.0
+- Share Media 1.0
+- Protocol Comparison
+- Common Patterns
 
-#### App-Intents 1.0
-- Request types: `https://didcomm.org/app-intent/1.0/<action>-request`
-- Response types: `https://didcomm.org/app-intent/1.0/<action>-response`
-- Signals: decline/progress/cancel
+Overview
 
-Helpers: `protocols.intents.advertise`, `protocols.intents.discover`, `protocols.intents.request`
+Built-in protocols are enabled by `initServiceWorker({ builtInProtocols: true })`. You can disable specific protocols or add your own. Versions follow DIDComm RFCs where applicable.
 
+Discover-Features 2.0
 
-#### Basic Message 1.0
-- Type: `https://didcomm.org/basicmessage/1.0/message`
+- Types: `https://didcomm.org/discover-features/2.0/queries`, `https://didcomm.org/discover-features/2.0/disclose`
+- Use cases: feature discovery across protocol and intent spaces
+- Helpers: `sdk.protocols.discover(['*'])`
 
-Client methods:
-- `sdk.protocols['basic-message-v1'].sendMessage(to, content, options?)`
-- `sdk.protocols['basic-message-v1'].getMessages()`
+App-Intents 1.0
 
-Example:
+- Request/Response: `.../<action>-request`, `.../<action>-response`; signals include decline/progress/cancel
+- Helpers: `sdk.protocols.intents.advertise`, `sdk.protocols.intents.discover`, `sdk.protocols.intents.request`
+
+Trust-Ping 2.0
+
+- Message types: `https://didcomm.org/trust-ping/2.0/ping`, `https://didcomm.org/trust-ping/2.0/ping-response`
+- Purpose: Liveness testing and latency measurement
+- Client methods:
+  - `sdk.protocols['trust-ping-v2'].ping(to, options?)`
+  - `sdk.protocols['trust-ping-v2'].pingAndWait(to, options?)`
+- Options: `{ comment?: string, responseRequested?: boolean, timeoutMs?: number }`
+- Configuration (SW): `{ autoRespond?: boolean, defaultTimeoutMs?: number }`
+
+Examples
+
 ```js
-await sdk.protocols['basic-message-v1'].sendMessage('did:example:peer', 'Hello world');
-const inbox = await sdk.protocols['basic-message-v1'].getMessages();
+await sdk.protocols['trust-ping-v2'].ping('did:example:peer', { comment: 'hello' });
+
+const res = await sdk.protocols['trust-ping-v2'].pingAndWait('did:example:peer', { timeoutMs: 3000 });
+console.log(res);
 ```
 
-#### User Profile 1.0
+Basic Message 2.0
+
+- Type: `https://didcomm.org/basicmessage/2.0/message`
+- Methods: `sendMessage(to, content)`, `getMessages()`
+  - Follows DIDComm Basic Message 2.0 specification
+
+User Profile 1.0
+
 - Types: `https://didcomm.org/user-profile/1.0/profile`, `https://didcomm.org/user-profile/1.0/request-profile`
+- Methods: `sendProfile`, `requestProfile`, `getProfile`
 
-Client methods:
-- `sdk.protocols['user-profile-v1'].sendProfile(to, { displayName, description, displayPicture? }, { send_back_yours? })`
-- `sdk.protocols['user-profile-v1'].requestProfile(to, { query?, send_back_yours?, timeoutMs? })`
-- `sdk.protocols['user-profile-v1'].getProfile(peer)`
+Out-of-Band 2.0
 
-#### Out-of-Band 2.0
 - Type: `https://didcomm.org/out-of-band/2.0/invitation`
+- Methods: `createInvitation`, `parseInvitation`, `encodeInvitationUrl`
 
-Client methods:
-- `sdk.protocols['out-of-band-v2'].createInvitation(options?) // { invitation, url }`
-- `sdk.protocols['out-of-band-v2'].parseInvitation(input)`
-- `sdk.protocols['out-of-band-v2'].encodeInvitationUrl(invitation, options?)`
+Report Problem 2.0
 
-#### Report Problem 2.0
 - Type: `https://didcomm.org/report-problem/2.0/problem-report`
+- Methods: `sendProblemReport`, `getProblemReports`
 
-Client methods:
-- `sdk.protocols['report-problem-v2'].sendProblemReport(to, { problemCode, explain?, args?, escalate_to?, web_redirect? })`
-- `sdk.protocols['report-problem-v2'].getProblemReports()`
+Share Media 1.0
 
-#### Share Media 1.0
 - Types: `https://didcomm.org/share-media/1.0/share`, `https://didcomm.org/share-media/1.0/request`
+- Methods: `shareMedia`, `requestMedia`, `getSharedMedia`
+- Canonical attachments are recommended (see API Reference: Attachments)
 
-Client methods:
-- `sdk.protocols['share-media-v1'].shareMedia(to, media, { note?, sizeLimit? })`
-- `sdk.protocols['share-media-v1'].requestMedia(to, { query?, timeoutMs? })`
-- `sdk.protocols['share-media-v1'].getSharedMedia()`
+Protocol Comparison (high level)
 
-Canonical attachment format examples for Share Media:
+- Request/Response: App-Intents, Trust-Ping, User Profile, Report Problem, Out-of-Band (parse)
+- Notification: Basic Message, Share Media (share)
+- Discovery: Discover-Features, App-Intents discovery
 
-```js
-// Embedded data
-await sdk.protocols['share-media-v1'].shareMedia(to, {
-  mimeType: 'image/jpeg',
-  filename: 'photo.jpg',
-  data: 'base64...'
-});
+Common Patterns
 
-// External URL
-await sdk.protocols['share-media-v1'].shareMedia(to, {
-  mimeType: 'image/jpeg',
-  filename: 'photo.jpg',
-  externalUrl: 'https://example.org/img.jpg'
-});
-
-// Legacy shape (still supported):
-// { mime_type: 'image/jpeg', filename: 'photo.jpg', data: { base64: '...' } }
-```
-
-User Profile display pictures are handled as attachments with `id: 'display-picture'` in canonical format. Attachments are carried at top-level; the protocol helper marks them in the body for lifting.
-
-Out-of-Band invitations encode attachments using the same canonical format when present in the invitation payload.
-
-
+- Use Discover-Features to check availability before invoking methods
+- Prefer canonical attachments in media/profile payloads
+- Use `timeoutMs` for request/response style protocols

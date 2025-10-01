@@ -1,4 +1,5 @@
-import { BaseProtocol } from '../../src/protocols/base.js';
+// Use package export for consumers; during SDK development you may import from '../../src/protocols/base.js'.
+import { BaseProtocol } from 'decent_app_sdk/protocols';
 
 export class GreetingProtocol extends BaseProtocol {
   constructor() {

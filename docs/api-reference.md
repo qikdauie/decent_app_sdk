@@ -1,200 +1,191 @@
 ### API Reference
 
-#### DecentClient
-- new DecentClient(options)
-- ready: Promise<void>
-- getDID(): Promise<PeerDIDResult>
-- pack(dest, type, bodyJson, attachments?, replyTo?): Promise<MessageOpResult>
-- unpack(raw): Promise<MessageOpResult>
-- send(dest, packed, threadId?): Promise<RouterResult>
-- sendOk(dest, packed, threadId?): Promise<boolean>
-- registerAddress(did): Promise<RouterResult>
-- registerAddressOk(did): Promise<boolean>
-- getDIDOk(): Promise<boolean>
-- packOk(...): Promise<boolean>
-- unpackOk(...): Promise<boolean>
-- isLastOperationSuccess(result): boolean
-- getLastError(result): string | null
-- onMessage(cb): () => void
+Table of Contents
 
-#### Dynamic Protocol Helpers
-- protocols.refresh(): Promise<string[]> — fetch available protocols and attach helpers
-- protocols.list(): string[] — list available protocol IDs
-- protocols.has(protocolId): boolean — check availability
-- protocols.{protocolId}.{method}(...args): Promise<any> — invoke a client-declared method
-- protocols.advertise(featureType, id, roles?): Promise<boolean>
-- protocols.discover(matchers, timeout?): Promise<{ ok: boolean, result?: Record<string, any[]>, error?: string }>
-- protocols.intents.advertise(actionOrRequestType, roles?): Promise<boolean>
-- protocols.intents.discover(matchers?, timeout?): Promise<{ ok: boolean, result?: Record<string, any[]>, error?: string }>
-- protocols.intents.request(dest, requestBody, opts?): Promise<{ ok: boolean, response?: any, declined?: boolean, error?: string }>
+- DecentClient
+- Dynamic Protocol Helpers
+- Permissions Helpers
+- Service Worker RPC Contract
+- Attachments
+- initServiceWorker
+- Thread-based Matching
+- Error Handling
+- Type Definitions
 
-#### Permissions helpers
-- permissions.check(protocolUri, messageTypeUri): Promise<boolean>
-- permissions.checkMultiple(protocolUris, messageTypeUris): Promise<boolean[]>
-- permissions.request(requests): Promise<ProtocolPermissionResult>
-- permissions.requestOk(requests): Promise<boolean>
-- permissions.getRequestError(requests): Promise<string | null>
-- permissions.listGranted(protocolUris): Promise<DIDCommProtocolPermission[]>
+DecentClient
 
-### Service Worker RPC Contract
+Constructor
 
-All RPCs are invoked via `MessageChannel` to the Service Worker. Each request includes `{ kind, data }` and a `port` for replies. Every response uses one of the two shapes:
-- Success: `{ ok: true, ...payload }`
-- Failure: `{ ok: false, error: string, ...extra }`
+```ts
+new DecentClient(options?: {
+  serviceWorkerUrl?: string;
+  readinessTimeoutMs?: number;  // default 8000
+  rpcTimeoutMs?: number;        // default 60000
+})
+```
 
-Supported kinds and payloads:
-- getProtocolMethods():
-  - Request: `{ kind: 'getProtocolMethods' }`
-  - Response: `{ ok: true, methods: Record<string, Record<string, { params?: string[], description?: string, timeoutMs?: number }>> }`
+Properties
 
-- protocolInvoke({ protocolId, method, args, timeout? }):
-  - Request: `{ kind: 'protocolInvoke', data: { protocolId: string, method: string, args?: any[], timeout?: number } }`
-  - Response: `{ ok: true, result: any }`
+- `ready: Promise<void>` — resolves when the SDK is connected to the Service Worker
 
-- getDID():
-  - Request: `{ kind: 'getDID' }`
-  - Response: `{ ok: true, did: string }`
+Methods
 
-- packMessage({ dest, type, body, attachments?, replyTo? }):
-  - Request: `{ kind: 'packMessage', data: { dest, type, body, attachments, replyTo } }`
-  - Response: environment-dependent (pass-through). When available, the response includes a `thid` field representing the DIDComm thread ID associated with the packed message. Typical shape: `{ success: boolean, message?: string, error?: string, thid?: string }`
+```ts
+getDID(): Promise<{ success: boolean; did: string; did_document?: any; public_key?: string; error?: string }>
+registerAddress(did: string): Promise<string> // RouterResult
+send(dest: string, packed: any, threadId?: string): Promise<string> // RouterResult
+sendOk(dest: string, packed: any, threadId?: string): Promise<boolean>
+pack(dest: string, type: string, bodyJson: any, attachments?: any[], replyTo?: string): Promise<{ success: boolean; message?: string; thid?: string; error?: string }>
+unpack(raw: any): Promise<{ success: boolean; message?: string; error?: string }>
+packOk(...): Promise<boolean>
+unpackOk(...): Promise<boolean>
+getDIDOk(): Promise<boolean>
+isLastOperationSuccess(result: any): boolean
+getLastError(result: any): string | null
+onMessage(cb: (raw: any) => void): () => void // unsubscribe
+```
 
-- unpackMessage({ raw }):
-  - Request: `{ kind: 'unpackMessage', data: { raw } }`
-  - Response: environment-dependent (pass-through)
-
-- send({ dest, packed, threadId? }):
-  - Request: `{ kind: 'send', data: { dest, packed, threadId? } }`
-  - Response: RouterResult (string), typically `'success' | ...`
-
-### Attachments
-
-The SDK uses a canonical `DIDCommAttachment` format across all protocols. This format is enforced at the Service Worker boundary and accepted by all helpers.
-
-- Required: `id` (string), `mimeType` (string)
-- Optional: `filename`, `description`, `data`, `externalUrl`, `isExternal`
-- Exactly one of `data` or `externalUrl` should be present in typical usage
-- `data` must be a string (e.g., base64 or JSON string); JSON payloads should be stringified
-- `isExternal` defaults to `false`; when `externalUrl` is present it is set to `true`
-
-Examples:
+Examples
 
 ```js
-// Embedded base64 image
+const sdk = new DecentClient({ serviceWorkerUrl: '/sw.js' });
+await sdk.ready;
+const did = await sdk.getDID();
+const packed = await sdk.pack('did:peer:xyz', 'https://didcomm.org/test/1.0/ping', JSON.stringify({}));
+await sdk.send('did:peer:xyz', packed.message, packed.thid);
+```
+
+Dynamic Protocol Helpers
+
+```ts
+protocols.refresh(): Promise<string[]>
+protocols.list(): string[]
+protocols.has(protocolId: string): boolean
+protocols[protocolId][method](...args: any[]): Promise<any>
+protocols.advertise(featureType: string, id: string, roles?: string[]): Promise<boolean>
+protocols.discover(matchers: string[], timeoutMs?: number): Promise<{ ok: boolean; result?: Record<string, any[]>; error?: string }>
+// App-Intents convenience
+protocols.intents.advertise(actionOrRequestType: string, roles?: string[]): Promise<boolean>
+protocols.intents.discover(matchers?: string[], timeoutMs?: number): Promise<{ ok: boolean; result?: Record<string, any[]>; error?: string }>
+protocols.intents.request(dest: string, body: any, opts?: { requestType: string; timeout?: number; waitForResult?: boolean }): Promise<{ ok: boolean; response?: any; declined?: boolean; error?: string }>
+```
+
+Examples
+
+```js
+await sdk.protocols.refresh();
+const available = sdk.protocols.list();
+
+// Feature discovery via per-protocol helper
+const df = await sdk.protocols['discover-features-v2'].discover(['*'], 500);
+
+// Trust Ping via per-protocol helper
+const ok = await sdk.protocols['trust-ping-v2'].ping('did:all:all', { comment: 'hello' });
+
+// App Intents via the intents facade (no protocols.appIntents)
+const intent = await sdk.protocols.intents.request(
+  'did:all:all',
+  { example: true },
+  { requestType: 'https://didcomm.org/app-intent/1.0/example-request', timeout: 3000 }
+);
+```
+
+Availability and Proxy Pattern
+
+- After `protocols.refresh()`, helpers are attached under `sdk.protocols[protocolId]`.
+- Use `protocols.has(id)` or `protocols.list()` to check availability.
+- Feature discovery is exposed under the `discover-features-v2` helper: `sdk.protocols['discover-features-v2'].discover(...)`.
+- App Intents are accessed via `sdk.protocols.intents.*` convenience methods; there is no `sdk.protocols.appIntents`.
+
+Permissions Helpers
+
+```ts
+permissions.check(protocolUri: string, messageTypeUri: string): Promise<boolean>
+permissions.checkMultiple(protocolUris: string[], messageTypeUris: string[]): Promise<boolean[]>
+permissions.request(requests: Array<{ protocolUri: string; protocolName?: string; description?: string; messageTypes: Array<{ typeUri: string; description?: string }> }>): Promise<any>
+permissions.requestOk(requests: ...): Promise<boolean>
+permissions.getRequestError(requests: ...): Promise<string | null>
+permissions.listGranted(protocolUris: string[]): Promise<any[]>
+```
+
+Service Worker RPC Contract
+
+Requests are sent via `MessageChannel` with `{ kind, data }`. Responses are `{ ok: true, ... }` or `{ ok: false, error }`.
+
+Supported kinds include:
+
+- `getProtocolMethods`
+- `protocolInvoke({ protocolId, method, args, timeout })`
+- `getDID`
+- `packMessage({ dest, type, body, attachments?, replyTo? })` — may include `thid`
+- `unpackMessage({ raw })`
+- `send({ dest, packed, threadId? })`
+- `discover`, `advertise`, `intentAdvertise`, `intentDiscover`, `intentRequest`
+- Permissions: `checkDidcommPermission`, `checkMultipleDidcommPermissions`, `requestDidcommPermissions`, `listGrantedDidcommPermissions`
+
+Attachments
+
+Canonical format
+
+```ts
+{
+  id: string;
+  mimeType: string;
+  filename?: string;
+  description?: string;
+  data?: string;        // base64 or stringified JSON
+  externalUrl?: string; // when provided, isExternal=true is implied
+  isExternal?: boolean;
+}
+```
+
+Examples
+
+```js
 { id: 'photo-1', mimeType: 'image/jpeg', filename: 'photo.jpg', data: 'base64...' }
-
-// External URL document
-{ id: 'doc-1', mimeType: 'application/pdf', filename: 'file.pdf', externalUrl: 'https://example.org/file.pdf', isExternal: true }
-
-// JSON data payload
-{ id: 'meta-1', mimeType: 'application/json', data: JSON.stringify({ k: 'v' }) }
+{ id: 'audio-1', mimeType: 'audio/mpeg', filename: 'song.mp3', data: 'base64...' }
+{ id: 'doc-1', mimeType: 'application/pdf', filename: 'file.pdf', externalUrl: 'https://example.org/file.pdf' }
 ```
 
-Legacy compatibility:
+Legacy compatibility: `mime_type`, nested `data.base64`, `url`, `links` are accepted and normalized.
 
-- The SDK accepts legacy shapes and converts them automatically: `mime_type`, nested `data.base64`, `data.links`, `url`, `links`.
-- Use the provided utilities to normalize and validate attachments:
+initServiceWorker
+
+```ts
+initServiceWorker(config?: {
+  builtInProtocols?: boolean | { [key: string]: boolean };
+  autoUnpack?: boolean;            // default true
+  deliveryStrategy?: 'broadcast' | 'thread'; // default 'broadcast'
+  appIntents?: {
+    router?: { onRequest?: Function; onCancel?: Function };
+    roles?: string[];              // default ['provider']
+    advertise?: boolean;
+  };
+})
+```
+
+Notes
+
+- `thread` delivery requires `autoUnpack=true`; if not set, it will be enforced.
+- Provide router handlers as functions; invalid handlers are ignored with warnings.
+
+Thread-based Matching
+
+- When present, `thid` is used to correlate request/response pairs.
+- Request/response helpers accept `timeout`/`timeoutMs` to bound waits.
+
+Error Handling
+
+- Low-level APIs return structured results; use `isLastOperationSuccess(result)` and `getLastError(result)`.
+- Convenience `...Ok` helpers map to booleans.
+- Recommended pattern:
 
 ```js
-import { normalizeAttachment, validateAttachment } from '../src/utils/attachments.js';
-
-const att = normalizeAttachment({ mime_type: 'image/jpeg', data: { base64: '...' } });
-const res = validateAttachment(att);
-if (!res.ok) throw new Error(res.error);
+const packed = await app.pack(dest, type, body);
+if (!packed.success) throw new Error(packed.error || 'pack failed');
+const ok = await app.sendOk(dest, packed.message, packed.thid);
 ```
 
-- discover({ matchers, timeout }):
-  - Request: `{ kind: 'discover', data: { matchers, timeout } }`
-  - Response: `{ ok: true, result: Record<string, Feature[]> }`
+Type Definitions
 
-- advertise({ featureType, id, roles }):
-  - Request: `{ kind: 'advertise', data: { featureType, id, roles } }`
-  - Response: `{ ok: true }`
-
-- intentAdvertise({ action | requestType, roles }):
-  - Request: `{ kind: 'intentAdvertise', data: { action?, requestType?, roles? } }`
-  - Response: `{ ok: true }`
-
-- intentDiscover({ matchers, timeout }):
-  - Request: `{ kind: 'intentDiscover', data: { matchers, timeout } }`
-  - Response: `{ ok: true, result: Record<string, IntentProvider[]> }`
-
-- intentRequest({ dest, requestBody, waitForResult, timeout, requestType? }):
-  - Request: `{ kind: 'intentRequest', data: { dest, requestBody, waitForResult?, timeout?, requestType } }`
-  - Response: `{ ok: true, response?: Envelope, declined?: boolean }`
-  - Note: when an intent is declined by the provider, `declined` will be `true` and `response` will contain the decline envelope (`type: 'https://didcomm.org/app-intent/1.0/decline'`).
-  - Note: when `packMessage` provides a `thid`, the service worker and router will use it for matching request/response pairs.
-
-- Permissions:
-  - checkDidcommPermission({ protocolUri, messageTypeUri }) → `{ ok: true, granted: boolean }`
-  - checkMultipleDidcommPermissions({ protocolUris, messageTypeUris }) → `{ ok: true, results: boolean[] }`
-  - requestDidcommPermissions({ requests }) → `{ ok: true, result: any }`
-  - listGrantedDidcommPermissions({ protocolUris }) → `{ ok: true, list: any[] }`
-
-Delivery event fan-out:
-- The Service Worker forwards inbound messages to controlled window clients as `postMessage({ kind: 'incoming', raw })`.
-- When configured with `deliveryStrategy: 'thread'`, the Service Worker targets delivery to the originating client based on DIDComm thread IDs. This requires `autoUnpack=true`.
-
-### initServiceWorker(config)
-
-Configuration options:
-- autoUnpack?: boolean = true
-  - When true, inbound delivery events are automatically unpacked and routed to protocols.
-  - When false, raw messages are forwarded; protocols receive raw payloads.
-- deliveryStrategy?: 'broadcast' | 'thread' = 'broadcast'
-  - 'broadcast': forward inbound messages to all clients (default).
-  - 'thread': target messages back to the originating client based on DIDComm `~thread` IDs.
-  - Constraint: 'thread' requires `autoUnpack=true`. If configured otherwise, the SDK automatically enables `autoUnpack` and logs a warning.
- - appIntents?:
-   - router?: { onRequest?: Function, onCancel?: Function }
-   - roles?: string[]
-   - advertise?: boolean
-   - When provided, the app-intents protocol will use your router handlers. Ensure handlers are functions.
-
-Examples:
-
-```js
-// Thread-based targeted delivery (autoUnpack enabled automatically if needed)
-initServiceWorker({ builtInProtocols: true, deliveryStrategy: 'thread', autoUnpack: false });
-// Logs a warning and forces autoUnpack=true.
-
-// Raw delivery without auto-unpacking using broadcast
-initServiceWorker({ builtInProtocols: true, deliveryStrategy: 'broadcast', autoUnpack: false });
-
-// App-intents with custom router handlers
-initServiceWorker({
-  builtInProtocols: true,
-  appIntents: {
-    router: {
-      async onRequest(envelope) {
-        // Decide and return outcome
-        return { accept: true, result: { ok: true } };
-      },
-      onCancel(envelope) {
-        // Handle cancellation
-      }
-    }
-  }
-});
-```
-
-### Thread-based matching
-
-- When available, the SDK uses DIDComm `~thread` `thid` for matching intent requests to responses.
-- `packMessage` may return a `thid`; downstream send and routing will propagate this via headers where appropriate.
-- For `intentRequest` with `waitForResult=true`, the service worker uses the thread ID to correlate the response to the originating request.
-- Timeout behavior: `intentRequest` accepts `timeout` (ms), default 5000. If no response is matched in time, the promise rejects with a timeout error.
-
-Error handling and return types
-
-- Many APIs provide both raw and convenience variants (`...Ok`, `get...Error`).
-- Raw variants typically return objects with `{ ok: boolean, ... }` or IDL-shaped results with `{ success: boolean, ... }`.
-- Convenience variants map to `boolean` success or return extracted error messages.
-
-Configuration options defaults
-
-- `autoUnpack`: default `true`
-- `deliveryStrategy`: default `'broadcast'`
-- `appIntents.roles`: default `['provider']`
-
-
+- TypeScript declaration files are published under `src/types/*.d.ts` and referenced via package exports.

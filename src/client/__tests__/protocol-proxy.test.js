@@ -36,14 +36,14 @@ describe('client protocol-proxy', () => {
     // First refresh returns two protocols
     messenger.rpc.mockResolvedValueOnce({ ok: true, methods: {
       'trust-ping-v2': { ping: {}, pingAndWait: {} },
-      'basic-message-v1': { sendMessage: {}, getMessages: {} },
+      'basic-message-v2': { sendMessage: {}, getMessages: {} },
     }});
     const ids = await factory.refresh();
-    expect(ids).toEqual(['trust-ping-v2', 'basic-message-v1']);
+    expect(ids).toEqual(['trust-ping-v2', 'basic-message-v2']);
     const tp = factory.get('trust-ping-v2');
     expect(tp.__methods).toContain('ping');
-    expect(factory.list()).toEqual(['trust-ping-v2', 'basic-message-v1']);
-    expect(factory.has('basic-message-v1')).toBe(true);
+    expect(factory.list()).toEqual(['trust-ping-v2', 'basic-message-v2']);
+    expect(factory.has('basic-message-v2')).toBe(true);
 
     // Rebuild proxies on refresh
     const before = tp;

@@ -2,14 +2,14 @@ import { BaseProtocol } from '../base.js';
 import { MESSAGE_TYPE, isValidBasicMessage, buildBasicMessageBody, parseBasicMessage } from './utils.js';
 
 /**
- * Basic Message 1.0 — simple text messaging
+ * Basic Message 2.0 — simple text messaging
  */
 export class BasicMessageProtocol extends BaseProtocol {
   constructor() {
     super({
-      id: 'basic-message-v1',
-      piuri: 'https://didcomm.org/basicmessage/1.0',
-      version: '1.0',
+      id: 'basic-message-v2',
+      piuri: 'https://didcomm.org/basicmessage/2.0',
+      version: '2.0',
       messageTypes: [MESSAGE_TYPE],
     });
     /** @type {Array<{ from?: string, to?: string, content: string, sent_time?: string, raw?: any }>} */

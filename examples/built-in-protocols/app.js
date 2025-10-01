@@ -1,4 +1,5 @@
-import { getReadyDecentClient} from '../../src/client/singleton.js';
+// Use package exports for consumers. For SDK development, you may import from '../../src/client/singleton.js'.
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 const out = document.querySelector('#out');
 const btn = document.querySelector('#discover');
@@ -47,7 +48,7 @@ sendMsgBtn.addEventListener('click', async () => {
   const to = String(msgTo.value || '').trim();
   const content = String(msgContent.value || '').trim();
   try {
-    await sdk.protocols['basic-message-v1'].sendMessage(to, content);
+    await sdk.protocols['basic-message-v2'].sendMessage(to, content);
     out.textContent = 'Message sent.';
   } catch (e) {
     out.textContent = String(e?.message || e);
@@ -55,7 +56,7 @@ sendMsgBtn.addEventListener('click', async () => {
 });
 
 loadInboxBtn.addEventListener('click', async () => {
-  const res = await sdk.protocols['basic-message-v1'].getMessages();
+  const res = await sdk.protocols['basic-message-v2'].getMessages();
   inboxEl.textContent = JSON.stringify(res?.messages || [], null, 2);
 });
 
@@ -117,3 +118,30 @@ loadMediaBtn.addEventListener('click', async () => {
 });
 
 
+// Trust-Ping protocol example
+const pingBtn = document.querySelector('#ping');
+const pingAndWaitBtn = document.querySelector('#pingAndWait');
+const pingTo = document.querySelector('#pingTo');
+const pingOut = document.querySelector('#pingOut');
+
+pingBtn?.addEventListener('click', async () => {
+  const to = String(pingTo?.value || '').trim();
+  pingOut.textContent = 'Sending ping...';
+  try {
+    await sdk.protocols['trust-ping-v2'].ping(to, { comment: 'hello' });
+    pingOut.textContent = 'Ping sent.';
+  } catch (e) {
+    pingOut.textContent = 'Ping failed: ' + String(e?.message || e);
+  }
+});
+
+pingAndWaitBtn?.addEventListener('click', async () => {
+  const to = String(pingTo?.value || '').trim();
+  pingOut.textContent = 'Pinging and waiting...';
+  try {
+    const res = await sdk.protocols['trust-ping-v2'].pingAndWait(to, { timeoutMs: 3000 });
+    pingOut.textContent = 'Ping response: ' + JSON.stringify(res, null, 2);
+  } catch (e) {
+    pingOut.textContent = 'Ping failed: ' + String(e?.message || e);
+  }
+});

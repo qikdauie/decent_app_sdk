@@ -22,7 +22,7 @@ describe('discover-features utils', () => {
 
   it('matchFeatures filters by feature-type and glob pattern', () => {
     const local = [
-      { featureType: 'protocol', id: 'https://didcomm.org/basicmessage/1.0' },
+      { featureType: 'protocol', id: 'https://didcomm.org/basicmessage/2.0' },
       { featureType: 'message-type', id: 'https://didcomm.org/trust-ping/2.0/ping' },
     ];
     const queries = [{ 'feature-type': 'message-type', match: 'https://didcomm.org/trust-ping/2.0/*' }];

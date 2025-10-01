@@ -1,4 +1,5 @@
-import { getReadyDecentClient, extractThid } from '../../src/client/singleton.js';
+// Prefer package exports for consumers; use local src path only when developing SDK.
+import { getReadyDecentClient, extractThid } from 'decent_app_sdk';
 
 const out = document.querySelector('#out');
 const btnInit = document.querySelector('#init');
@@ -12,6 +13,14 @@ let sdk;
  * This example demonstrates the difference between:
  * 1. thid - Used for delivery routing and correlation
  * 2. reply_to - Used for conversation threading
+ *
+ * Flow (visual):
+ *   You  --(pack)->  Msg(type=pink) [thid=A]  --send-->  Peer
+ *   Peer --response--> Msg(type=pong) [thid=A] --recv-->  You
+ *
+ * Common pitfalls:
+ * - Forgetting to pass replyTo for replies; results in new thread.
+ * - Assuming thid equals conversation id; it's for routing, maintain your own mapping.
  * 
  * Key Concepts:
  * - When starting a new conversation, pass empty string "" for replyTo
@@ -42,7 +51,7 @@ btnInit.addEventListener('click', async () => {
       const unpacked = await sdk.unpack(incoming);
       if (!unpacked.success) return;
       const message = JSON.parse(unpacked.message);
-      lastReceivedMessage = JSON.stringify(message); // store stringified unpacked envelope
+      lastReceivedMessage = JSON.stringify(message); // store stringified unpacked envelope for replyTo
       const thid = extractThid(message) || 'unknown';
       const threadKey = Object.keys(conversationHistory).find(k => thid.includes(k)) || 'thread-A';
       conversationHistory[threadKey].push({ direction: 'in', text: message.body?.text || '[ping response]', thid, timestamp: new Date().toISOString() });
